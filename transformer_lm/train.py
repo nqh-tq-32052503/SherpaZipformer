@@ -41,7 +41,7 @@ import torch.nn as nn
 import torch.optim as optim
 from dataset import get_dataloader
 from lhotse.utils import fix_random_seed
-from rnn_model import TransformerLM
+from model import TransformerLM
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.nn.utils import clip_grad_norm_
 from torch.utils.tensorboard import SummaryWriter
