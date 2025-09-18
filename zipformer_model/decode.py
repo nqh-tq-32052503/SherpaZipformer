@@ -88,8 +88,8 @@ from typing import Dict, List, Optional, Tuple
 import k2
 import torch
 import torch.nn as nn
-from asr_datamodule import WenetSpeechAsrDataModule
-from beam_search import (
+from zipformer_model.asr_datamodule import WenetSpeechAsrDataModule
+from zipformer_model.beam_search import (
     beam_search,
     fast_beam_search_nbest,
     fast_beam_search_nbest_LG,
@@ -100,7 +100,7 @@ from beam_search import (
     modified_beam_search,
 )
 from lhotse.cut import Cut
-from train import add_model_arguments, get_model, get_params
+from zipformer_model.train import add_model_arguments, get_model, get_params
 
 from icefall_utils import CharCtcTrainingGraphCompiler
 from icefall_utils.checkpoint import (

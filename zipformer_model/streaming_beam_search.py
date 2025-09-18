@@ -20,8 +20,8 @@ from typing import List
 import k2
 import torch
 import torch.nn as nn
-from beam_search import Hypothesis, HypothesisList, get_hyps_shape
-from decode_stream import DecodeStream
+from zipformer_model.beam_search import Hypothesis, HypothesisList, get_hyps_shape
+from zipformer_model.decode_stream import DecodeStream
 
 from icefall_utils.decode import one_best_decoding
 from icefall_utils.utils import get_texts

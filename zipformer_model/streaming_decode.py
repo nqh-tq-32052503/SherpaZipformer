@@ -39,18 +39,18 @@ from typing import Dict, List, Optional, Tuple
 import k2
 import numpy as np
 import torch
-from asr_datamodule import WenetSpeechAsrDataModule
-from decode_stream import DecodeStream
+from zipformer_model.asr_datamodule import WenetSpeechAsrDataModule
+from zipformer_model.decode_stream import DecodeStream
 from kaldifeat import Fbank, FbankOptions
 from lhotse import CutSet
-from streaming_beam_search import (
+from zipformer_model.streaming_beam_search import (
     fast_beam_search_one_best,
     greedy_search,
     modified_beam_search,
 )
 from torch import Tensor, nn
 from torch.nn.utils.rnn import pad_sequence
-from train import add_model_arguments, get_model, get_params
+from zipformer_model.train import add_model_arguments, get_model, get_params
 
 from icefall_utils.checkpoint import (
     average_checkpoints,

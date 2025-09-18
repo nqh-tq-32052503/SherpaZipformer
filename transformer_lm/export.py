@@ -23,7 +23,7 @@ import logging
 from pathlib import Path
 
 import torch
-from model import TransformerLM
+from transformer_lm.model import TransformerLM
 
 from icefall_utils.checkpoint import load_checkpoint
 from icefall_utils.utils import AttributeDict, load_averaged_model, str2bool

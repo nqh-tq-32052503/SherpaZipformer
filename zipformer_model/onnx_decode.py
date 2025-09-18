@@ -75,9 +75,9 @@ from typing import List, Tuple
 import k2
 import torch
 import torch.nn as nn
-from asr_datamodule import WenetSpeechAsrDataModule
+from zipformer_model.asr_datamodule import WenetSpeechAsrDataModule
 from lhotse.cut import Cut
-from onnx_pretrained import OnnxModel, greedy_search
+from zipformer_model.onnx_pretrained import OnnxModel, greedy_search
 
 from icefall_utils.utils import setup_logger, store_transcripts, write_error_stats
 

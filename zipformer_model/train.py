@@ -65,25 +65,25 @@ from shutil import copyfile
 from typing import Any, Dict, Optional, Tuple, Union
 
 import k2
-import optim
+from zipformer_model import optim
 import torch
 import torch.multiprocessing as mp
 import torch.nn as nn
-from asr_datamodule import WenetSpeechAsrDataModule
-from decoder import Decoder
-from joiner import Joiner
+from zipformer_model.asr_datamodule import WenetSpeechAsrDataModule
+from zipformer_model.decoder import Decoder
+from zipformer_model.joiner import Joiner
 from lhotse.cut import Cut
 from lhotse.dataset.sampling.base import CutSampler
 from lhotse.utils import fix_random_seed
-from model import AsrModel
-from optim import Eden, ScaledAdam
-from scaling import ScheduledFloat
-from subsampling import Conv2dSubsampling
+from zipformer_model.model import AsrModel
+from zipformer_model.optim import Eden, ScaledAdam
+from zipformer_model.scaling import ScheduledFloat
+from zipformer_model.subsampling import Conv2dSubsampling
 from torch import Tensor
 from torch.cuda.amp import GradScaler
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.tensorboard import SummaryWriter
-from zipformer import Zipformer2
+from zipformer_model.zipformer import Zipformer2
 
 from icefall_utils import diagnostics
 from icefall_utils import CharCtcTrainingGraphCompiler

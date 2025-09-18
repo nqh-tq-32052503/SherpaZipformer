@@ -80,7 +80,7 @@ import argparse
 import logging
 
 import torch
-from onnx_pretrained import OnnxModel
+from zipformer_model.onnx_pretrained import OnnxModel
 
 
 def get_parser():

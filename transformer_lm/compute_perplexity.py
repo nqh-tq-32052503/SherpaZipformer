@@ -23,7 +23,7 @@ from pathlib import Path
 
 import torch
 from dataset import get_dataloader
-from train import get_params
+from transformer_lm.train import get_params
 
 from icefall_utils.checkpoint import average_checkpoints, load_checkpoint
 from transformer_lm.model import TransformerLM

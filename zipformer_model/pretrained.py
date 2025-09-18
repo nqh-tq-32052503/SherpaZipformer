@@ -117,14 +117,14 @@ import k2
 import kaldifeat
 import torch
 import torchaudio
-from beam_search import (
+from zipformer_model.beam_search import (
     fast_beam_search_one_best,
     greedy_search_batch,
     modified_beam_search,
 )
-from export import num_tokens
+from zipformer_model.export import num_tokens
 from torch.nn.utils.rnn import pad_sequence
-from train import add_model_arguments, get_model, get_params
+from zipformer_model.train import add_model_arguments, get_model, get_params
 
 
 def get_parser():

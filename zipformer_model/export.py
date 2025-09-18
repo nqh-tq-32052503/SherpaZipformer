@@ -165,9 +165,9 @@ from typing import List, Tuple
 
 import k2
 import torch
-from scaling_converter import convert_scaled_to_non_scaled
+from zipformer_model.scaling_converter import convert_scaled_to_non_scaled
 from torch import Tensor, nn
-from train import add_model_arguments, get_model, get_params
+from zipformer_model.train import add_model_arguments, get_model, get_params
 
 from icefall_utils.checkpoint import (
     average_checkpoints,
