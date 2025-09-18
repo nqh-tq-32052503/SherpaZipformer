@@ -24,14 +24,14 @@ import warnings
 from typing import List, Optional, Tuple, Union
 
 import torch
-from encoder_interface import EncoderInterface
-from scaling import (
+from zipformer_model.encoder_interface import EncoderInterface
+from zipformer_model.scaling import (
     Identity,  # more friendly to backward hooks than nn.Identity(), for diagnostic reasons.
 )
-from scaling import (
+from zipformer_model.scaling import (
     ScaledLinear,  # not as in other dirs.. just scales down initial parameter values.
 )
-from scaling import (
+from zipformer_model.scaling import (
     ActivationDropoutAndLinear,
     Balancer,
     BiasNorm,
