@@ -268,3 +268,190 @@ def find_checkpoints(out_dir: Path, iteration: int = 0) -> List[str]:
         ans = [ic[1] for ic in iter_checkpoints if ic[0] <= -iteration]
 
     return ans
+
+def save_checkpoint(
+    filename: Path,
+    model: Union[nn.Module, DDP],
+    model_avg: Optional[nn.Module] = None,
+    params: Optional[Dict[str, Any]] = None,
+    optimizer: Optional[Optimizer] = None,
+    scheduler: Optional[LRSchedulerType] = None,
+    scaler: Optional["GradScaler"] = None,
+    sampler: Optional[CutSampler] = None,
+    rank: int = 0,
+) -> None:
+    """Save training information to a file.
+
+    Args:
+      filename:
+        The checkpoint filename.
+      model:
+        The model to be saved. We only save its `state_dict()`.
+      model_avg:
+        The stored model averaged from the start of training.
+      params:
+        User defined parameters, e.g., epoch, loss.
+      optimizer:
+        The optimizer to be saved. We only save its `state_dict()`.
+      scheduler:
+        The scheduler to be saved. We only save its `state_dict()`.
+      scalar:
+        The GradScaler to be saved. We only save its `state_dict()`.
+      rank:
+        Used in DDP. We save checkpoint only for the node whose rank is 0.
+    Returns:
+      Return None.
+    """
+    if rank != 0:
+        return
+
+    logging.info(f"Saving checkpoint to {filename}")
+
+    if isinstance(model, DDP):
+        model = model.module
+
+    checkpoint = {
+        "model": model.state_dict(),
+        "optimizer": optimizer.state_dict() if optimizer is not None else None,
+        "scheduler": scheduler.state_dict() if scheduler is not None else None,
+        "grad_scaler": scaler.state_dict() if scaler is not None else None,
+        "sampler": sampler.state_dict() if sampler is not None else None,
+    }
+
+    if model_avg is not None:
+        checkpoint["model_avg"] = model_avg.to(torch.float32).state_dict()
+
+    if params:
+        for k, v in params.items():
+            assert k not in checkpoint, k
+            checkpoint[k] = v
+
+    torch.save(checkpoint, filename)
+
+def remove_checkpoints(
+    out_dir: Path,
+    topk: int,
+    rank: int = 0,
+):
+    """Remove checkpoints from the given directory.
+
+    We assume that checkpoint filename has the form `checkpoint-xxx.pt`
+    where xxx is a number, representing the number of processed batches
+    when saving that checkpoint. We sort checkpoints by filename and keep
+    only the `topk` checkpoints with the highest `xxx`.
+
+    Args:
+      out_dir:
+        The directory containing checkpoints to be removed.
+      topk:
+        Number of checkpoints to keep.
+      rank:
+        If using DDP for training, it is the rank of the current node.
+        Use 0 if no DDP is used for training.
+    """
+    assert topk >= 1, topk
+    if rank != 0:
+        return
+    checkpoints = find_checkpoints(out_dir)
+
+    if len(checkpoints) == 0:
+        logging.warn(f"No checkpoints found in {out_dir}")
+        return
+
+    if len(checkpoints) <= topk:
+        return
+
+    to_remove = checkpoints[topk:]
+    for c in to_remove:
+        os.remove(c)
+
+def save_checkpoint_with_global_batch_idx(
+    out_dir: Path,
+    global_batch_idx: int,
+    model: Union[nn.Module, DDP],
+    model_avg: Optional[nn.Module] = None,
+    params: Optional[Dict[str, Any]] = None,
+    optimizer: Optional[Optimizer] = None,
+    scheduler: Optional[LRSchedulerType] = None,
+    scaler: Optional["GradScaler"] = None,
+    sampler: Optional[CutSampler] = None,
+    rank: int = 0,
+):
+    """Save training info after processing given number of batches.
+
+    Args:
+      out_dir:
+        The directory to save the checkpoint.
+      global_batch_idx:
+        The number of batches processed so far from the very start of the
+        training. The saved checkpoint will have the following filename:
+
+            f'out_dir / checkpoint-{global_batch_idx}.pt'
+      model:
+        The neural network model whose `state_dict` will be saved in the
+        checkpoint.
+      model_avg:
+        The stored model averaged from the start of training.
+      params:
+        A dict of training configurations to be saved.
+      optimizer:
+        The optimizer used in the training. Its `state_dict` will be saved.
+      scheduler:
+        The learning rate scheduler used in the training. Its `state_dict` will
+        be saved.
+      scaler:
+        The scaler used for mix precision training. Its `state_dict` will
+        be saved.
+      sampler:
+        The sampler used in the training dataset.
+      rank:
+        The rank ID used in DDP training of the current node. Set it to 0
+        if DDP is not used.
+    """
+    out_dir = Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    filename = out_dir / f"checkpoint-{global_batch_idx}.pt"
+    save_checkpoint(
+        filename=filename,
+        model=model,
+        model_avg=model_avg,
+        params=params,
+        optimizer=optimizer,
+        scheduler=scheduler,
+        scaler=scaler,
+        sampler=sampler,
+        rank=rank,
+    )
+
+def update_averaged_model(
+    params: Dict[str, Tensor],
+    model_cur: Union[nn.Module, DDP],
+    model_avg: nn.Module,
+) -> None:
+    """Update the averaged model:
+    model_avg = model_cur * (average_period / batch_idx_train)
+      + model_avg * ((batch_idx_train - average_period) / batch_idx_train)
+
+    Args:
+      params:
+        User defined parameters, e.g., epoch, loss.
+      model_cur:
+        The current model.
+      model_avg:
+        The averaged model to be updated.
+    """
+    weight_cur = params.average_period / params.batch_idx_train
+    weight_avg = 1 - weight_cur
+
+    if isinstance(model_cur, DDP):
+        model_cur = model_cur.module
+
+    cur = model_cur.state_dict()
+    avg = model_avg.state_dict()
+
+    average_state_dict(
+        state_dict_1=avg,
+        state_dict_2=cur,
+        weight_1=weight_avg,
+        weight_2=weight_cur,
+    )

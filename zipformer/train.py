@@ -21,28 +21,37 @@
 """
 Usage:
 
+
+
 export CUDA_VISIBLE_DEVICES="0,1,2,3,4,5,6,7"
+# NON-STREAMING
 
 ./zipformer/train.py \
-  --world-size 8 \
+  --world-size 6 \
   --num-epochs 12 \
-  --start-epoch 1 \
-  --exp-dir zipformer/exp \
-  --training-subset L
-  --lr-epochs 1.5 \
-  --max-duration 350
-
-# For mix precision training:
-
-./zipformer/train.py \
-  --world-size 8 \
-  --num-epochs 12 \
-  --start-epoch 1 \
   --use-fp16 1 \
-  --exp-dir zipformer/exp \
+  --max-duration 450 \
   --training-subset L \
   --lr-epochs 1.5 \
-  --max-duration 750
+  --context-size 2 \
+  --exp-dir zipformer/exp_L_context_2 \
+  --causal 0 \
+  --num-workers 8
+
+# For mix precision training:
+# STREAMING
+
+./zipformer/train.py \
+  --world-size 8 \
+  --num-epochs 12 \
+  --use-fp16 1 \
+  --max-duration 450 \
+  --training-subset L \
+  --lr-epochs 1.5 \
+  --context-size 2 \
+  --exp-dir zipformer/exp_L_causal_context_2 \
+  --causal 1 \
+  --num-workers 8
 
 """
 
