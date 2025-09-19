@@ -28,7 +28,13 @@ from transformer_lm.scaling import (
     ScaledConv2d,
     ScaledLinear,
 )
-from icefall_utils.utils import is_jit_tracing
+
+def is_jit_tracing():
+    if torch.jit.is_scripting():
+        return False
+    elif torch.jit.is_tracing():
+        return True
+    return False
 
 
 class RelPositionMultiheadAttention(nn.Module):
