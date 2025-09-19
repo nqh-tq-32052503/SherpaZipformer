@@ -31,7 +31,14 @@ from transformer_lm.scaling import (
     ScaledConv2d,
     ScaledLinear,
 )
-from icefall_utils.utils import is_jit_tracing, make_pad_mask
+from icefall_utils.utils import make_pad_mask
+
+def is_jit_tracing():
+    if torch.jit.is_scripting():
+        return False
+    elif torch.jit.is_tracing():
+        return True
+    return False
 
 
 class Transformer(torch.nn.Module):
