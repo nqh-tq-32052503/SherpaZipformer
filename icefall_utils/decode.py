@@ -1,7 +1,7 @@
 import k2
 import torch
 from typing import Dict, List, Optional, Union
-from utils import get_texts
+from icefall_utils.utils import get_texts
 
 
 def _intersect_device(
