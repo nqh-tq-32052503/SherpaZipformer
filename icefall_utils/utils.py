@@ -822,3 +822,9 @@ def get_parameter_groups_with_lrs(
     else:
         return [{"params": params, "lr": lr} for lr, params in lr_to_params.items()]
 
+def is_jit_tracing():
+    if torch.jit.is_scripting():
+        return False
+    elif torch.jit.is_tracing():
+        return True
+    return False
