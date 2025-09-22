@@ -35,6 +35,7 @@ class Tester(object):
         self.load_model(checkpoint_path)
         self.model.to(device)
         self.model.eval()
+        print("[INFO] Decoding method=", self.params.decoding_method)
 
     def load_model(self, checkpoint_path):
         self.model = get_model(self.params)
@@ -91,7 +92,6 @@ class Tester(object):
             return encoder_out, encoder_out_lens
 
     def decode(self, encoder_out, encoder_out_lens):
-        print("[INFO] Decoding method=", self.params.decoding_method)
         hyps = []
 
         if self.params.decoding_method == "greedy_search" and self.params.max_sym_per_frame == 1:
