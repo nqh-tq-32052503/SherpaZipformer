@@ -36,6 +36,7 @@ class Tester(object):
         self.model.to(device)
         self.model.eval()
         print("[INFO] Decoding method=", self.params.decoding_method)
+        torch.cuda.init()
 
     def load_model(self, checkpoint_path):
         self.model = get_model(self.params)
