@@ -11,7 +11,7 @@ transformation = jiwer.Compose([
     jiwer.ReduceToListOfListOfWords(),
 ])
 
-def compute_wer(refs, hyps):
+def compute_wer(refs, hyps, return_scalar=True):
     """
     Compute WER given references and hypotheses.
 
@@ -34,4 +34,7 @@ def compute_wer(refs, hyps):
 
         all_wer.append(wer_score)
     wer = sum(all_wer) / len(all_wer)
-    return wer
+    if return_scalar:
+        return wer
+    else:
+        return all_wer
