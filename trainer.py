@@ -15,7 +15,7 @@ from icefall_utils.checkpoint import save_checkpoint
 import os
 from tqdm import tqdm
 # Get environment variable safely (returns None if not set)
-MAX_DURATION = os.environ.get("MAX_DURATION")
+MAX_DURATION = int(os.environ.get("MAX_DURATION"))
 device = torch.device("cuda")
 
 class Trainer(object):
