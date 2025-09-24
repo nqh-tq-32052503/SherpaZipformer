@@ -807,6 +807,7 @@ def get_parameter_groups_with_lrs(
                 continue
         else:
             if prefix in freeze_modules:
+                print(f"Remove {prefix}: {name} from parameters")
                 logging.info(f"Remove {name} from parameters")
                 continue
         cur_lr = lr * flat_lr_scale[prefix]
