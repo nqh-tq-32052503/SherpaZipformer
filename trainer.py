@@ -19,7 +19,7 @@ MAX_DURATION = os.environ.get("MAX_DURATION")
 device = torch.device("cuda")
 
 class Trainer(object):
-    def __init__(self, folder_path, checkpoint_path):
+    def __init__(self, folder_path, checkpoint_path, freeze_modules=[]):
         parser = get_parser()
         args = parser.parse_args([])
         self.params = get_params()
@@ -34,9 +34,10 @@ class Trainer(object):
         self.load_model(checkpoint_path)
         self.model.to(device)
         print("[INFO] Init optimizer, scaler, scheduler")
+        self.freeze_modules = freeze_modules
         self.init_supporters()
         print("[INFO] Finish")
-        pass
+        
     def load_model(self, checkpoint_path):
         self.model = get_model(self.params)
         checkpoint = torch.load(checkpoint_path, map_location="cpu", weights_only=False)
@@ -52,7 +53,7 @@ class Trainer(object):
     def init_supporters(self):
         self.scaler = GradScaler(enabled=self.params.use_fp16, init_scale=1.0)
         self.optimizer = ScaledAdam(
-                get_parameter_groups_with_lrs(self.model, lr=self.params.base_lr, include_names=True),
+                get_parameter_groups_with_lrs(self.model, lr=self.params.base_lr, include_names=True, freeze_modules=self.freeze_modules),
                 lr=0.005,  # should have no effect
                 clipping_scale=2.0,
             )
