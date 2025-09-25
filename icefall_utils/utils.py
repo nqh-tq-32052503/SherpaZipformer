@@ -751,6 +751,17 @@ class MetricsTracker(defaultdict):
         for k, v in self.norm_items():
             tb_writer.add_scalar(prefix + k, v, batch_idx)
 
+def count_trainable_parameters(model: nn.Module) -> int:
+    """Count the number of trainable parameters in a model.
+
+    Args:
+      model:
+        The model to be inspected.
+    Returns:
+      Return the number of trainable parameters in the model.
+    """
+    return sum(p.numel() for p in model.parameters() if p.requires_grad)
+
 def get_parameter_groups_with_lrs(
     model: nn.Module,
     lr: float,
@@ -795,7 +806,8 @@ def get_parameter_groups_with_lrs(
     # include_names == true, a list of (name, parameter) for that learning rate;
     # otherwise a list of parameters for that learning rate.
     lr_to_params = defaultdict(list)
-
+    print("[INFO] Before freezing, the model has {} trainable parameters.".format(
+        count_trainable_parameters(model)))
     for name, parameter in model.named_parameters():
         split_name = name.split(".")
         # caution: as a special case, if the name is '', split_name will be [ '' ].
@@ -809,7 +821,6 @@ def get_parameter_groups_with_lrs(
         else:
             if prefix in freeze_modules:
                 parameter.requires_grad = False
-                print(f"Remove {prefix}: {name} from parameters")
                 logging.info(f"Remove {name} from parameters")
                 continue
         cur_lr = lr * flat_lr_scale[prefix]
@@ -819,7 +830,8 @@ def get_parameter_groups_with_lrs(
             prefix = ".".join([prefix, part])
             cur_lr *= flat_lr_scale[prefix]
         lr_to_params[cur_lr].append((name, parameter) if include_names else parameter)
-
+    print("[INFO] After freezing, the model has {} trainable parameters.".format(
+        count_trainable_parameters(model)))
     if include_names:
         return [{"named_params": pairs, "lr": lr} for lr, pairs in lr_to_params.items()]
     else:
