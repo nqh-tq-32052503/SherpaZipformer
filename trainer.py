@@ -19,12 +19,13 @@ MAX_DURATION = int(os.environ.get("MAX_DURATION"))
 device = torch.device("cuda")
 
 class Trainer(object):
-    def __init__(self, folder_path, checkpoint_path, freeze_modules=[]):
+    def __init__(self, folder_path, checkpoint_path, freeze_modules=[], is_streaming=False):
         parser = get_parser()
         args = parser.parse_args([])
         self.params = get_params()
         self.params.update(vars(args))
         self.params.max_duration = MAX_DURATION
+        self.params.causal = is_streaming
         self.token_table = k2.SymbolTable.from_file(folder_path + "/pseudo_data/tokens.txt")
         self.params.blank_id = self.token_table["<blk>"]
         self.params.vocab_size = max(self.tokens()) + 1
