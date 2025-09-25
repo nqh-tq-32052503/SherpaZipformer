@@ -41,14 +41,17 @@ class Trainer(object):
         
     def load_model(self, checkpoint_path):
         self.model = get_model(self.params)
-        checkpoint = torch.load(checkpoint_path, map_location="cpu", weights_only=False)
-        dst_state_dict = self.model.state_dict()
-        src_state_dict = checkpoint["model"]
-        for key in dst_state_dict.keys():
-            src_key = key
-            dst_state_dict[key] = src_state_dict.pop(src_key)
-        assert len(src_state_dict) == 0
-        self.model.load_state_dict(dst_state_dict, strict=True)
+        if os.path.exists(checkpoint_path):
+            checkpoint = torch.load(checkpoint_path, map_location="cpu", weights_only=False)
+            dst_state_dict = self.model.state_dict()
+            src_state_dict = checkpoint["model"]
+            for key in dst_state_dict.keys():
+                src_key = key
+                dst_state_dict[key] = src_state_dict.pop(src_key)
+            assert len(src_state_dict) == 0
+            self.model.load_state_dict(dst_state_dict, strict=True)
+        else:
+            print("[INFO] Train from scratch")
         self.model_avg = copy.deepcopy(self.model).to(torch.float64)
 
     def init_supporters(self):
