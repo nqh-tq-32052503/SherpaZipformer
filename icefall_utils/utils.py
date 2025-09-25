@@ -803,10 +803,12 @@ def get_parameter_groups_with_lrs(
         if prefix == "module":  # DDP
             module_name = split_name[1]
             if module_name in freeze_modules:
+                parameter.requires_grad = False
                 logging.info(f"Remove {name} from parameters")
                 continue
         else:
             if prefix in freeze_modules:
+                parameter.requires_grad = False
                 print(f"Remove {prefix}: {name} from parameters")
                 logging.info(f"Remove {name} from parameters")
                 continue
