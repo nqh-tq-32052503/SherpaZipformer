@@ -7,7 +7,7 @@ import warnings
 import copy
 
 from zipformer_model.train import get_parser, get_params, get_model, set_batch_count, get_adjusted_batch_count, update_averaged_model, save_checkpoint_with_global_batch_idx
-from icefall_utils.utils import get_parameter_groups_with_lrs, MetricsTracker, make_pad_mask
+from icefall_utils.utils import get_parameter_groups_with_lrs, MetricsTracker, make_pad_mask, count_trainable_parameters
 from zipformer_model.optim import ScaledAdam, Eden
 from icefall_utils.checkpoint import save_checkpoint
 
@@ -140,7 +140,6 @@ class Trainer(object):
         return loss, info
 
     def train_one_epoch(self, train_dataloader, checkpoint_folder, epoch=0):
-        self.model.train()
         tot_loss = MetricsTracker()
         cur_batch_idx = self.params.get("cur_batch_idx", 0)
         for batch_idx, batch in tqdm(enumerate(train_dataloader)):
@@ -189,6 +188,9 @@ class Trainer(object):
 
     def train(self, train_dataloader, num_epochs, checkpoint_folder):
         self.tracks = []
+        self.model.train()
+        print("[INFO] Total trainable parameters: {}".format(
+            count_trainable_parameters(self.model)))
         for epoch in range(num_epochs):
             epoch_loss = self.train_one_epoch(train_dataloader, checkpoint_folder, epoch)
             print(epoch_loss)
