@@ -13,19 +13,22 @@ from zipformer_model.beam_search import (
 from zipformer_model.decode import get_parser 
 
 import os
+import math
 from tqdm import tqdm
 # Get environment variable safely (returns None if not set)
 MAX_DURATION = int(os.environ.get("MAX_DURATION"))
+LOG_EPS = math.log(1e-10)
 device = torch.device("cuda")
 
 
 class Tester(object):
-    def __init__(self, folder_path, checkpoint_path):
+    def __init__(self, folder_path, checkpoint_path, is_streaming=False):
         parser = get_parser()
         args = parser.parse_args([])
         self.params = get_params()
         self.params.update(vars(args))
         self.params.max_duration = MAX_DURATION
+        self.params.causal = is_streaming
         self.token_table = k2.SymbolTable.from_file(folder_path + "/pseudo_data/tokens.txt")
         self.params.blank_id = self.token_table["<blk>"]
         self.params.vocab_size = max(self.tokens()) + 1
@@ -84,6 +87,15 @@ class Tester(object):
     
             supervisions = batch["supervisions"]
             feature_lens = supervisions["num_frames"].to(device)
+            if self.params.causal:
+                # this seems to cause insertions at the end of the utterance if used with zipformer.
+                pad_len = 30
+                feature_lens += pad_len
+                feature = torch.nn.functional.pad(
+                    feature,
+                    pad=(0, 0, 0, pad_len),
+                    value=LOG_EPS,
+                )
             x, x_lens = self.model.encoder_embed(feature, feature_lens)
             src_key_padding_mask = make_pad_mask(x_lens)
             x = x.permute(1, 0, 2)  # (N, T, C) -> (T, N, C)
