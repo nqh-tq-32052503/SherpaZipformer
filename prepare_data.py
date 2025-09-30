@@ -108,3 +108,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    # SAMPLE: python prepare_data.py --data_path='/data/audio_data/valid.csv' --output_dir='/data/audio_data/valid_feats'

@@ -26,11 +26,11 @@ class Trainer(object):
         self.params.update(vars(args))
         self.params.max_duration = MAX_DURATION
         self.params.causal = is_streaming
-        self.token_table = k2.SymbolTable.from_file(folder_path + "/pseudo_data/tokens.txt")
+        self.token_table = k2.SymbolTable.from_file(folder_path + "/tokens.txt")
         self.params.blank_id = self.token_table["<blk>"]
         self.params.vocab_size = max(self.tokens()) + 1
         self.sp = spm.SentencePieceProcessor()
-        self.sp.load(folder_path + "/pseudo_data/bpe.model")
+        self.sp.load(folder_path + "/bpe.model")
         print("[INFO] Load model...")
         self.load_model(checkpoint_path)
         self.model.to(device)
@@ -50,6 +50,7 @@ class Trainer(object):
                 dst_state_dict[key] = src_state_dict.pop(src_key)
             assert len(src_state_dict) == 0
             self.model.load_state_dict(dst_state_dict, strict=True)
+            self.params.base_lr = 1e-4
         else:
             print("[INFO] Train from scratch")
         self.model_avg = copy.deepcopy(self.model).to(torch.float64)
@@ -190,6 +191,8 @@ class Trainer(object):
         return tot_loss
 
     def train(self, train_dataloader, num_epochs, checkpoint_folder):
+        if not os.path.exists(checkpoint_folder):
+            os.makedirs(checkpoint_folder)
         self.tracks = []
         self.model.train()
         print("[INFO] Total trainable parameters: {}".format(
@@ -199,3 +202,21 @@ class Trainer(object):
             print(epoch_loss)
             self.tracks.append(epoch_loss)
 
+    def train_with_test(self, train_dataloader, valid_dataloader, num_epochs, checkpoint_folder, tester):
+        if not os.path.exists(checkpoint_folder):
+            os.makedirs(checkpoint_folder)
+        self.tracks = []
+        self.model.train()
+        print("[INFO] Total trainable parameters: {}".format(
+            count_trainable_parameters(self.model)))
+        for epoch in range(num_epochs):
+            epoch_loss = self.train_one_epoch(train_dataloader, checkpoint_folder, epoch)
+            print(epoch_loss)
+            self.tracks.append(epoch_loss)
+            print("[INFO] Start validation...")
+            all_wers = []
+            for batch in tqdm(valid_dataloader):
+                wer = tester(batch)
+                all_wers.append(wer)
+            mean_wer = sum(all_wers) / len(all_wers)
+            print(f"[INFO] Validation WER: MIN: {min(all_wers)} MAX: {max(all_wers)} AVG: {mean_wer}")

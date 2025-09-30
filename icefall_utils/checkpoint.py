@@ -311,11 +311,7 @@ def save_checkpoint(
         model = model.module
 
     checkpoint = {
-        "model": model.state_dict(),
-        "optimizer": optimizer.state_dict() if optimizer is not None else None,
-        "scheduler": scheduler.state_dict() if scheduler is not None else None,
-        "grad_scaler": scaler.state_dict() if scaler is not None else None,
-        "sampler": sampler.state_dict() if sampler is not None else None,
+        "model": model.state_dict()
     }
 
     if model_avg is not None:

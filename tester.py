@@ -29,11 +29,11 @@ class Tester(object):
         self.params.update(vars(args))
         self.params.max_duration = MAX_DURATION
         self.params.causal = is_streaming
-        self.token_table = k2.SymbolTable.from_file(folder_path + "/pseudo_data/tokens.txt")
+        self.token_table = k2.SymbolTable.from_file(folder_path + "/tokens.txt")
         self.params.blank_id = self.token_table["<blk>"]
         self.params.vocab_size = max(self.tokens()) + 1
         self.sp = spm.SentencePieceProcessor()
-        self.sp.load(folder_path + "/pseudo_data/bpe.model")
+        self.sp.load(folder_path + "/bpe.model")
         print("[INFO] Load model...")
         self.load_model(checkpoint_path)
         self.model.to(device)
