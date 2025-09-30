@@ -27,7 +27,6 @@ class DataPreparation(object):
 
     def load_in_recording_set(self, wav_files, transcripts):
         out_dir = self.output_dir
-        out_dir.mkdir(parents=True, exist_ok=True)
 
         # 2) Build RecordingSet
         recordings = []
