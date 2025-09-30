@@ -58,14 +58,14 @@ class DataPreparation(object):
         supervisions = SupervisionSet.from_segments(supervisions)
 
         # 4) Save manifests as .jsonl.gz
-        recordings_path   = out_dir / "recordings.jsonl.gz"
-        supervisions_path = out_dir / "supervisions.jsonl.gz"
+        recordings_path   = out_dir + "/recordings.jsonl.gz"
+        supervisions_path = out_dir + "/supervisions.jsonl.gz"
         recordings.to_file(recordings_path)
         supervisions.to_file(supervisions_path)
 
         # 5) Create CutSet and save (this is what you’ll load for raw)
         cuts = CutSet.from_manifests(recordings=recordings, supervisions=supervisions)
-        cuts_path = out_dir / "cuts.jsonl.gz"
+        cuts_path = out_dir + "/cuts.jsonl.gz"
         cuts.to_file(cuts_path)
 
     def convert_to_fbank(self):
