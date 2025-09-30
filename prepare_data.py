@@ -95,8 +95,16 @@ def main():
     assert os.path.exists(args.data_path), f"raw data file {args.data_path} does not exist."
     raw_data = pd.read_csv(args.data_path, encoding='utf-8')
     print("[INFO] Load raw data.......")
-    list_audios = raw_data["path"].tolist()
-    list_transcripts = raw_data["transcript"].tolist()
+
+    list_records = raw_data["path\ttranscript\tduration"].tolist()
+    list_transcripts = []
+    list_audios = []
+    for element in list_records:
+        parts = element.split('\t')
+        if os.path.exists(parts[0]):
+            list_audios.append(parts[0])
+            list_transcripts.append(parts[1])
+    print(f"[INFO] Number of audio files: {len(list_audios)}")
     DataPreparation(list_audios, list_transcripts, args.output_dir)
 
 if __name__ == "__main__":
