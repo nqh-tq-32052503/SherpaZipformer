@@ -1,5 +1,3 @@
-import k2
-import lhotse
 import os
 from tqdm import tqdm
 from pathlib import Path
@@ -66,7 +64,7 @@ class DataPreparation(object):
         recordings.to_file(recordings_path)
         supervisions.to_file(supervisions_path)
 
-        # 5) Create CutSet and save (this is what you’ll load for training)
+        # 5) Create CutSet and save (this is what you’ll load for raw)
         cuts = CutSet.from_manifests(recordings=recordings, supervisions=supervisions)
         cuts_path = out_dir / "cuts.jsonl.gz"
         cuts.to_file(cuts_path)
@@ -91,12 +89,12 @@ def get_parser():
 def main():
     parser = get_parser()
     args = parser.parse_args()
-    print(f"Training data path: {args.data_path}")
+    print(f"raw data path: {args.data_path}")
     print(f"Output directory: {args.output_dir}")
 
-    assert os.path.exists(args.data_path), f"Training data file {args.data_path} does not exist."
+    assert os.path.exists(args.data_path), f"raw data file {args.data_path} does not exist."
     raw_data = pd.read_csv(args.data_path, encoding='utf-8')
-    print("[INFO] Load training data.......")
+    print("[INFO] Load raw data.......")
     list_audios = raw_data["path"].tolist()
     list_transcripts = raw_data["transcript"].tolist()
     DataPreparation(list_audios, list_transcripts, args.output_dir)
