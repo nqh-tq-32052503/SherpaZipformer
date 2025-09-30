@@ -98,3 +98,6 @@ def main():
     list_audios = raw_data["path"].tolist()
     list_transcripts = raw_data["transcript"].tolist()
     DataPreparation(list_audios, list_transcripts, args.output_dir)
+
+if __name__ == "__main__":
+    main()
