@@ -73,7 +73,7 @@ class DataPreparation(object):
         fbank = Fbank(FbankConfig(sampling_rate=16000, num_mel_bins=80))
         cuts = cuts.compute_and_store_features(
             extractor=fbank,
-            storage_path="feats",       # directory for .llc feature files
+            storage_path=self.output_dir + "/feats",       # directory for .llc feature files
             num_jobs=4                  # parallelism
         )
         cuts.to_file(self.output_dir + "/cuts_with_feats.jsonl.gz")
