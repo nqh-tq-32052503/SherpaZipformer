@@ -82,6 +82,7 @@ def get_parser():
     parser = argparse.ArgumentParser(description="Sherpa Data Preparation")
     parser.add_argument("--data_path", type=str, default="train.csv", help="Path to raw data")
     parser.add_argument("--output_dir", type=str, default="manifests", help="Directory to save manifests")
+    parser.add_argument("--is_exist", type=int, default=0, help="Whether check audios are existing")
     return parser
 
 
@@ -104,7 +105,11 @@ def main():
             list_audios.append(parts[0])
             list_transcripts.append(parts[1])
     print(f"[INFO] Number of audio files: {len(list_audios)}")
-    DataPreparation(list_audios, list_transcripts, args.output_dir)
+    if args.is_exist == 0:
+        DataPreparation(list_audios, list_transcripts, args.output_dir)
+    else:
+        print("[INFO] Len of all list_records: ", len(list_records))
+        print("[INFO] Len of existing audios: ", len(list_audios))
 
 if __name__ == "__main__":
     main()
