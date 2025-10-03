@@ -1,0 +1,10 @@
+# pip install git+https://github.com/lhotse-speech/lhotse
+# wget https://huggingface.co/zzasdf/viet_iter3_pseudo_label/resolve/main/exp/pretrained.pt
+# https://k2-fsa.github.io/k2/cuda.html
+torch==2.8.0
+kaldifst 
+kaldilm 
+kaldialign 
+sentencepiece 
+tensorboard
+jiwer==3.0.3

@@ -2,7 +2,7 @@ import os
 from tqdm import tqdm
 from pathlib import Path
 from lhotse import Recording, RecordingSet, SupervisionSegment, SupervisionSet, CutSet
-from lhotse import load_manifest_lazy
+from lhotse import load_manifest_lazy, load_manifest, fix_manifests, validate_recordings_and_supervisions
 from lhotse import Fbank, FbankConfig, CutSet
 import argparse
 import pandas as pd
@@ -12,71 +12,90 @@ class DataPreparation(object):
     def __init__(self, list_audios, list_transcripts, output_dir="manifests"):
         """
         Args:
-            list_audios: a list of paths to audio files
-            list_transcripts: a list of corresponding transcripts
-            output_dir: directory to save the manifests
+            list_audios: list đường dẫn WAV
+            list_transcripts: list transcript tương ứng (cùng chiều)
+            output_dir: thư mục lưu manifests/feats
         """
         self.output_dir = output_dir
-        if not os.path.exists(self.output_dir):
-            os.makedirs(self.output_dir)
-        print("[INFO] Start to load in Recording Set...")
-        self.load_in_recording_set(list_audios, list_transcripts)
-        print("[INFO] Load in Recording Set successfully!")
-        self.convert_to_fbank()
-        print("[INFO] Convert to FBank successfully!")
+        os.makedirs(self.output_dir, exist_ok=True)
 
-    def load_in_recording_set(self, wav_files, transcripts):
+        print("[INFO] Build Recording/Supervision...")
+        self.build_and_save_manifests(list_audios, list_transcripts)
+        print("[INFO] Build manifests done.")
+
+        print("[INFO] Compute + store FBanks...")
+        self.compute_and_store_fbank()
+        print("[INFO] FBanks done.")
+
+    def build_and_save_manifests(self, wav_files, transcripts):
         out_dir = self.output_dir
 
-        # 2) Build RecordingSet
-        recordings = []
-        print("[INFO] Start to load in Recording Set...")
-        for p in tqdm(wav_files):
+        # 1) Build RecordingSet (eager)
+        recs = []
+        for p in tqdm(wav_files, desc="RecordingSet"):
             p = Path(p)
             assert p.exists(), f"Missing file: {p}"
-            rec = Recording.from_file(p, recording_id=p.stem)  # id defaults to filename stem
-            recordings.append(rec)
-        recordings = RecordingSet.from_recordings(recordings)
+            # id = stem để khớp với sups
+            recs.append(Recording.from_file(p, recording_id=p.stem))
+        recordings = RecordingSet.from_recordings(recs)
 
-        # 3) Build SupervisionSet (one segment per file, full duration)
-        supervisions = []
-        print("[INFO] Start to load in Supervision Set...")
-        for rec, text in tqdm(zip(recordings, transcripts)):
-            assert isinstance(text, str) and text.strip(), f"Empty transcript for {rec.id}"
-            supervisions.append(
+        # 2) Build SupervisionSet (mỗi file 1 segment full duration)
+        assert len(wav_files) == len(transcripts), "Audio/transcript length mismatch"
+        sups = []
+        for rec, text in tqdm(zip(recordings, transcripts), total=len(transcripts), desc="SupervisionSet"):
+            text = str(text).strip()
+            assert text, f"Empty transcript for {rec.id}"
+            sups.append(
                 SupervisionSegment(
                     id=f"{rec.id}-seg0",
                     recording_id=rec.id,
                     start=0.0,
                     duration=rec.duration,
-                    text=text.strip(),
-                    # Optional extras:
-                    # speaker="spk1",
-                    # language="vi",
+                    text=text,
                 )
             )
-        supervisions = SupervisionSet.from_segments(supervisions)
+        supervisions = SupervisionSet.from_segments(sups)
 
-        # 4) Save manifests as .jsonl.gz
-        recordings_path   = out_dir + "/recordings.jsonl.gz"
-        supervisions_path = out_dir + "/supervisions.jsonl.gz"
-        recordings.to_file(recordings_path)
-        supervisions.to_file(supervisions_path)
+        # 3) Sửa và validate (rất nên làm)
+        recordings, supervisions = fix_manifests(recordings, supervisions)
+        validate_recordings_and_supervisions(recordings, supervisions)
 
-        # 5) Create CutSet and save (this is what you’ll load for raw)
-        cuts = CutSet.from_manifests(recordings=recordings, supervisions=supervisions)
-        cuts_path = out_dir + "/cuts.jsonl.gz"
-        cuts.to_file(cuts_path)
+        # 4) Tạo CutSet (eager) và TRIM THEO SUPS (eager)
+        cuts_raw = CutSet.from_manifests(recordings=recordings, supervisions=supervisions)
+        cuts_trim = cuts_raw.trim_to_supervisions(keep_overlapping=False).to_eager()
 
-    def convert_to_fbank(self):
-        cuts = load_manifest_lazy(self.output_dir + "/cuts.jsonl.gz")
-        fbank = Fbank(FbankConfig(sampling_rate=16000, num_mel_bins=80))
-        cuts = cuts.compute_and_store_features(
+        # 5) Lưu tất cả dưới dạng EAGER
+        recordings.to_file(f"{out_dir}/recordings.jsonl.gz")
+        supervisions.to_file(f"{out_dir}/supervisions.jsonl.gz")
+        cuts_raw.to_eager().to_file(f"{out_dir}/cuts.jsonl.gz")
+        cuts_trim.to_file(f"{out_dir}/cuts_trim.jsonl.gz")  # <-- sẽ dùng file này cho bước tính feats
+
+    def compute_and_store_fbank(self):
+        out_dir = self.output_dir
+
+        # ĐỌC EAGER (không dùng lazy ở bước tiền xử lý)
+        cuts = load_manifest(f"{out_dir}/cuts_trim.jsonl.gz")
+
+        # Tùy dataset bạn, chọn sampling_rate đúng với dữ liệu; nếu file gốc 16k thì để 16k
+        fbank = Fbank(FbankConfig(sampling_rate=16000, num_mel_bins=80, device="cuda"))
+
+        # Tính & lưu feats (hàm này có thể tạo pipeline lazy tạm thời -> ép eager sau khi xong)
+        cuts_with_feats = cuts.compute_and_store_features(
             extractor=fbank,
-            storage_path=self.output_dir + "/feats",       # directory for .llc feature files
-            num_jobs=4                  # parallelism
+            storage_path=f"{out_dir}/feats",   # dir chứa .llc
+            num_jobs=8
         )
-        cuts.to_file(self.output_dir + "/cuts_with_feats.jsonl.gz")
+
+        # ÉP EAGER + LƯU: manifest cuối cùng dành cho TRAIN
+        cuts_with_feats = cuts_with_feats.to_eager()
+        cuts_with_feats.to_file(f"{out_dir}/cuts_with_feats_trim.jsonl.gz")
+
+        # (Không bắt buộc) Nếu bạn cũng muốn phiên bản không trim:
+        # cuts_raw = load_manifest(f"{out_dir}/cuts.jsonl.gz")
+        # cuts_raw_feats = cuts_raw.compute_and_store_features(
+        #     extractor=fbank, storage_path=f"{out_dir}/feats_raw", num_jobs=8
+        # ).to_eager()
+        # cuts_raw_feats.to_file(f"{out_dir}/cuts_with_feats.jsonl.gz")
 
 def get_parser():
     parser = argparse.ArgumentParser(description="Sherpa Data Preparation")

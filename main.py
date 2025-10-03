@@ -3,7 +3,7 @@ import lhotse
 import os
 from tqdm import tqdm
 from pathlib import Path
-from lhotse import load_manifest_lazy
+from lhotse import load_manifest_lazy, load_manifest
 from lhotse.dataset.speech_recognition import K2SpeechRecognitionDataset
 from lhotse.dataset import DynamicBucketingSampler, SimpleCutSampler
 from torch.utils.data import DataLoader
@@ -29,7 +29,7 @@ def get_parser():
     return parser
 
 def create_dataloader(cuts_with_feats_path):
-    cuts = load_manifest_lazy(cuts_with_feats_path)
+    cuts = load_manifest(cuts_with_feats_path)
     # cuts = cuts.with_features_path_prefix(
     #     "/kaggle/working/training_data"
     # )

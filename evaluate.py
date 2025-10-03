@@ -1,4 +1,4 @@
-# pip install -q jiwer==4.0.0
+# pip install -q jiwer==3.0.3
 
 import jiwer
 
