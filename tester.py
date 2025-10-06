@@ -9,6 +9,7 @@ from zipformer_model.beam_search import (
     greedy_search,
     greedy_search_batch,
     modified_beam_search,
+    fast_beam_search_one_best
 )
 from zipformer_model.decode import get_parser 
 
@@ -16,19 +17,20 @@ import os
 import math
 from tqdm import tqdm
 # Get environment variable safely (returns None if not set)
-MAX_DURATION = int(os.environ.get("MAX_DURATION"))
+MAX_DURATION = 300 # int(os.environ.get("MAX_DURATION"))
 LOG_EPS = math.log(1e-10)
 device = torch.device("cuda")
 
 
 class Tester(object):
-    def __init__(self, folder_path, checkpoint_path, is_streaming=False):
+    def __init__(self, folder_path, checkpoint_path, is_streaming=False, decoding_method="greedy_search"):
         parser = get_parser()
         args = parser.parse_args([])
         self.params = get_params()
         self.params.update(vars(args))
         self.params.max_duration = MAX_DURATION
         self.params.causal = is_streaming
+        self.params.decoding_method = decoding_method
         self.token_table = k2.SymbolTable.from_file(folder_path + "/tokens.txt")
         self.params.blank_id = self.token_table["<blk>"]
         self.params.vocab_size = max(self.tokens()) + 1
@@ -51,6 +53,8 @@ class Tester(object):
             dst_state_dict[key] = src_state_dict.pop(src_key)
         assert len(src_state_dict) == 0
         self.model.load_state_dict(dst_state_dict, strict=True)
+        for param in self.model.parameters():
+            param.requires_grad = False
 
     def tokens(self):
         """Return a list of token IDs excluding those from
@@ -83,6 +87,7 @@ class Tester(object):
             assert feature.ndim == 3
     
             feature = feature.to(device)
+            feature.requires_grad = False
             # at entry, feature is (N, T, C)
     
             supervisions = batch["supervisions"]
@@ -126,6 +131,31 @@ class Tester(object):
             )
             for i in range(encoder_out.size(0)):
                 hyps.append([self.token_table[idx] for idx in hyp_tokens[i]])
+        elif "fast_beam_search" in self.params.decoding_method:
+            decoding_graph = k2.trivial_graph(self.params.vocab_size - 1, device=device)
+            if  self.params.decoding_method == "fast_beam_search_one_best":
+                hyp_tokens = fast_beam_search_one_best(
+                    model=self.model,
+                    decoding_graph=decoding_graph,
+                    encoder_out=encoder_out,
+                    encoder_out_lens=encoder_out_lens,
+                    beam=self.params.beam,
+                    max_contexts=self.params.max_contexts,
+                    max_states=self.params.max_states,
+                    blank_penalty=self.params.blank_penalty,
+                )
+                for i in range(encoder_out.size(0)):
+                    hyps.append([self.token_table[idx] for idx in hyp_tokens[i]])
+        elif    self.params.decoding_method == "modified_beam_search":
+            hyp_tokens = modified_beam_search(
+                model=self.model,
+                encoder_out=encoder_out,
+                encoder_out_lens=encoder_out_lens,
+                blank_penalty=self.params.blank_penalty,
+                beam=self.params.beam_size,
+            )
+            for i in range(encoder_out.size(0)):
+                hyps.append([self.token_table[idx] for idx in hyp_tokens[i]]) 
         else:
             batch_size = encoder_out.size(0)
 
