@@ -10,22 +10,49 @@ from zipformer_model.train import get_parser, get_params, get_model, set_batch_c
 from icefall_utils.utils import get_parameter_groups_with_lrs, MetricsTracker, make_pad_mask, count_trainable_parameters
 from zipformer_model.optim import ScaledAdam, Eden
 from icefall_utils.checkpoint import save_checkpoint
+from zipformer_model.beam_search import (
+    beam_search,
+    greedy_search,
+    greedy_search_batch,
+    modified_beam_search,
+    fast_beam_search_one_best
+)
 
+from lhotse.features import Fbank, FbankConfig
 
 import os
 from tqdm import tqdm
+import math
 # Get environment variable safely (returns None if not set)
 MAX_DURATION = int(os.environ.get("MAX_DURATION"))
+LOG_EPS = math.log(1e-10)
 device = torch.device("cuda")
 
+import jiwer
+from tqdm import tqdm
+import pandas as pd
+
+
+transformation = jiwer.Compose([
+    jiwer.RemovePunctuation(),
+    jiwer.RemoveMultipleSpaces(),
+    jiwer.ToLowerCase(),
+    jiwer.RemoveKaldiNonWords(),
+    jiwer.Strip(),
+    jiwer.ReduceToListOfListOfWords(),
+])
+
+
 class Trainer(object):
-    def __init__(self, folder_path, checkpoint_path, freeze_modules=[], is_streaming=False):
+    def __init__(self, folder_path, checkpoint_path, freeze_modules=[], is_streaming=False, decoding_method="greedy_search"):
         parser = get_parser()
         args = parser.parse_args([])
         self.params = get_params()
         self.params.update(vars(args))
         self.params.max_duration = MAX_DURATION
         self.params.causal = is_streaming
+        self.params.decoding_method = decoding_method
+        self.params.max_sym_per_frame = 1
         self.token_table = k2.SymbolTable.from_file(folder_path + "/tokens.txt")
         self.params.blank_id = self.token_table["<blk>"]
         self.params.vocab_size = max(self.tokens()) + 1
@@ -50,7 +77,7 @@ class Trainer(object):
                 dst_state_dict[key] = src_state_dict.pop(src_key)
             assert len(src_state_dict) == 0
             self.model.load_state_dict(dst_state_dict, strict=True)
-            self.params.base_lr = 1e-4
+            
         else:
             print("[INFO] Train from scratch")
         self.model_avg = copy.deepcopy(self.model).to(torch.float64)
@@ -142,7 +169,45 @@ class Trainer(object):
         info["pruned_loss"] = pruned_loss.detach().cpu().item()
 
         return loss, info
+    
+    def train_one_batch(self, batch_idx, batch):
+        if batch_idx % 10 == 0:
+            set_batch_count(self.model, get_adjusted_batch_count(self.params))
 
+        self.params.batch_idx_train += 1
+        batch_size = len(batch["supervisions"]["text"])
+        loss, loss_info = self.compute_loss(batch)
+        # summary stats
+
+        # NOTE: We use reduction==sum and loss is computed over utterances
+        # in the batch and there is no normalization to it so far.
+        self.scaler.scale(loss).backward()
+        self.scheduler.step_batch(self.params.batch_idx_train)
+
+        self.scaler.step(self.optimizer)
+        self.scaler.update()
+        self.optimizer.zero_grad()
+
+        if (self.params.batch_idx_train > 0 and self.params.batch_idx_train % self.params.average_period == 0):
+            update_averaged_model(
+                params=self.params,
+                model_cur=self.model,
+                model_avg=self.model_avg,
+            )
+    def save(self, checkpoint_folder, epoch):
+        print("[INFO] Save checkpoint...")
+        filename = f"{checkpoint_folder}/checkpoint-{epoch}.pt"
+        save_checkpoint(
+            filename=filename,
+            model=self.model,
+            model_avg=self.model_avg,
+            params=self.params,
+            optimizer=self.optimizer,
+            scheduler=self.scheduler,
+            scaler=self.scaler,
+            sampler=None,
+            rank=0,
+        )
     def train_one_epoch(self, train_dataloader, checkpoint_folder, epoch=0):
         tot_loss = MetricsTracker()
         cur_batch_idx = self.params.get("cur_batch_idx", 0)
@@ -202,21 +267,131 @@ class Trainer(object):
             print(epoch_loss)
             self.tracks.append(epoch_loss)
 
-    def train_with_test(self, train_dataloader, valid_dataloader, num_epochs, checkpoint_folder, tester):
-        if not os.path.exists(checkpoint_folder):
-            os.makedirs(checkpoint_folder)
-        self.tracks = []
-        self.model.train()
-        print("[INFO] Total trainable parameters: {}".format(
-            count_trainable_parameters(self.model)))
-        for epoch in range(num_epochs):
-            epoch_loss = self.train_one_epoch(train_dataloader, checkpoint_folder, epoch)
-            print(epoch_loss)
-            self.tracks.append(epoch_loss)
-            print("[INFO] Start validation...")
-            all_wers = []
-            for batch in tqdm(valid_dataloader):
-                wer = tester(batch)
-                all_wers.append(wer)
-            mean_wer = sum(all_wers) / len(all_wers)
-            print(f"[INFO] Validation WER: MIN: {min(all_wers)} MAX: {max(all_wers)} AVG: {mean_wer}")
+    
+
+
+    def test(self, batch):
+        encoder_out, encoder_out_lens = self.encode_one_batch(batch)
+        output_texts = self.decode(encoder_out, encoder_out_lens)
+        output_texts = [o_.replace("▁", " ").lower() for o_ in output_texts]
+        gt_texts = batch["supervisions"]["text"]
+        wers = []
+        for gt, hyp in zip(gt_texts, output_texts):
+            wer_score = jiwer.wer(
+                str(gt),
+                str(hyp),
+                truth_transform=transformation,
+                hypothesis_transform=transformation
+            )
+            wers.append(wer_score)
+        return wers 
+    
+    def encode_one_batch(self, batch):
+        with torch.no_grad():
+            feature = batch["inputs"]
+            assert feature.ndim == 3
+    
+            feature = feature.to(device)
+            feature.requires_grad = False
+            # at entry, feature is (N, T, C)
+    
+            supervisions = batch["supervisions"]
+            feature_lens = supervisions["num_frames"].to(device)
+            if self.params.causal:
+                # this seems to cause insertions at the end of the utterance if used with zipformer.
+                pad_len = 30
+                feature_lens += pad_len
+                feature = torch.nn.functional.pad(
+                    feature,
+                    pad=(0, 0, 0, pad_len),
+                    value=LOG_EPS,
+                )
+            x, x_lens = self.model.encoder_embed(feature, feature_lens)
+            src_key_padding_mask = make_pad_mask(x_lens)
+            x = x.permute(1, 0, 2)  # (N, T, C) -> (T, N, C)
+    
+            encoder_out, encoder_out_lens = self.model.encoder(x, x_lens, src_key_padding_mask)
+            encoder_out = encoder_out.permute(1, 0, 2)  # (T, N, C) ->(N, T, C)
+            return encoder_out, encoder_out_lens
+
+    def decode(self, encoder_out, encoder_out_lens):
+        hyps = []
+        max_sym_per_frame = getattr(self.params, "max_sym_per_frame", 1)
+        blank_penalty = getattr(self.params, "blank_penalty", 0)
+        beam_size = getattr(self.params, "beam_size", 4)
+
+        if self.params.decoding_method == "greedy_search" and max_sym_per_frame == 1:
+            hyp_tokens = greedy_search_batch(
+                model=self.model,
+                encoder_out=encoder_out,
+                encoder_out_lens=encoder_out_lens,
+                blank_penalty=blank_penalty,
+            )
+            for i in range(encoder_out.size(0)):
+                hyps.append([self.token_table[idx] for idx in hyp_tokens[i]])
+        elif self.params.decoding_method == "modified_beam_search":
+            hyp_tokens = modified_beam_search(
+                model=self.model,
+                encoder_out=encoder_out,
+                encoder_out_lens=encoder_out_lens,
+                blank_penalty=blank_penalty,
+                beam=beam_size,
+            )
+            for i in range(encoder_out.size(0)):
+                hyps.append([self.token_table[idx] for idx in hyp_tokens[i]])
+        elif "fast_beam_search" in self.params.decoding_method:
+            decoding_graph = k2.trivial_graph(self.params.vocab_size - 1, device=device)
+            if  self.params.decoding_method == "fast_beam_search_one_best":
+                hyp_tokens = fast_beam_search_one_best(
+                    model=self.model,
+                    decoding_graph=decoding_graph,
+                    encoder_out=encoder_out,
+                    encoder_out_lens=encoder_out_lens,
+                    beam=beam_size,
+                    max_contexts=self.params.max_contexts,
+                    max_states=self.params.max_states,
+                    blank_penalty=blank_penalty,
+                )
+                for i in range(encoder_out.size(0)):
+                    hyps.append([self.token_table[idx] for idx in hyp_tokens[i]])
+        elif self.params.decoding_method == "modified_beam_search":
+            hyp_tokens = modified_beam_search(
+                model=self.model,
+                encoder_out=encoder_out,
+                encoder_out_lens=encoder_out_lens,
+                blank_penalty=blank_penalty,
+                beam=beam_size,
+            )
+            for i in range(encoder_out.size(0)):
+                hyps.append([self.token_table[idx] for idx in hyp_tokens[i]]) 
+        else:
+            batch_size = encoder_out.size(0)
+
+            for i in range(batch_size):
+                # fmt: off
+                encoder_out_i = encoder_out[i:i + 1, :encoder_out_lens[i]]
+                # fmt: on
+                if self.params.decoding_method == "greedy_search":
+                    hyp = greedy_search(
+                        model=self.model,
+                        encoder_out=encoder_out_i,
+                        max_sym_per_frame=max_sym_per_frame,
+                        blank_penalty=blank_penalty,
+                    )
+                elif self.params.decoding_method == "beam_search":
+                    hyp = beam_search(
+                        model=self.model,
+                        encoder_out=encoder_out_i,
+                        beam=beam_size,
+                        blank_penalty=blank_penalty,
+                    )
+                else:
+                    raise ValueError(
+                        f"Unsupported decoding method: {self.decoding_method}"
+                    )
+                hyps.append([self.token_table[idx] for idx in hyp])
+        output_texts = []
+        for hyp in hyps:
+            output = "".join(h_ for h_ in hyp)
+            output_texts.append(output)
+        return output_texts    
