@@ -8,10 +8,12 @@ import os
 from tqdm import tqdm
 import pandas as pd
 
-def test_checkpoint(valid_cuts, checkpoint_path, material_path, save_path):
+def test_checkpoint(valid_cuts, checkpoint_path, material_path, save_path, prefix_path=None):
     assert os.path.exists(valid_cuts) and os.path.exists(checkpoint_path) and os.path.exists(material_path), "Paths not found"
 
     cuts = load_manifest(valid_cuts)  # <-- EAGER + đã TRIM
+    if prefix_path is not None:
+        cuts = cuts.with_features_path_prefix(prefix_path)
     print(len(cuts))  # OK
 
     dataset = K2SpeechRecognitionDataset(cuts)
