@@ -13,7 +13,7 @@ from lhotse import load_manifest, CutSet
 from lhotse.dataset import K2SpeechRecognitionDataset
 from lhotse.dataset.sampling import SimpleCutSampler
 from lhotse.dataset.cut_transforms import (
-    ExtraPadding, PerturbTempo, PerturbVolume, ReverbWithImpulseResponse, PerturbSpeed
+    ExtraPadding, PerturbTempo, PerturbVolume, ReverbWithImpulseResponse
 )
 from lhotse.features import Fbank, FbankConfig
 from lhotse.dataset.input_strategies import OnTheFlyFeatures
@@ -21,14 +21,29 @@ from torch.utils.data import DataLoader
 import torch
 from tqdm import tqdm
 import random
-from trainer import Trainer
+from tester import Tester
 import time 
+import jiwer
+from tqdm import tqdm
+import pandas as pd
+
+
+transformation = jiwer.Compose([
+    jiwer.RemovePunctuation(),
+    jiwer.RemoveMultipleSpaces(),
+    jiwer.ToLowerCase(),
+    jiwer.RemoveKaldiNonWords(),
+    jiwer.Strip(),
+    jiwer.ReduceToListOfListOfWords(),
+])
 
 PAD_LOG = float(torch.log(torch.tensor(1e-10)))
 TRAIN_CUTS = "/mnt/Disk800/thangnv102/gobangvts/processed_training_data/cuts_trim.jsonl.gz"
-VALID_CUTS = "/mnt/Disk800/thangnv102/gobangvts/processed_validation_data/cuts_with_feats_trim.jsonl.gz"
+VALID_CUTS = "/mnt/Disk800/thangnv102/gobangvts/processed_validation_data/cuts_trim.jsonl.gz"
 MATERIAL_DIR = "/mnt/Disk800/thangnv102/gobangvts/SherpaZipformer/pseudo_data"
-CHECKPOINT_PATH = "/mnt/Disk800/thangnv102/gobangvts/pretrained.pt"
+
+CHECKPOINT_PATH = "/mnt/Disk800/thangnv102/gobangvts/checkpoints-v2/checkpoint-29.pt"
+
 FREEZE_MODULES = ["encoder"]
 IS_STREAMING = False
 SAVE_DIR = "/mnt/Disk800/thangnv102/gobangvts/checkpoints-v2"
@@ -41,11 +56,10 @@ class Pipeline(object):
         self.sampler = SimpleCutSampler(self.cuts, max_duration=MAX_DURATION, max_cuts=50, shuffle=True)
         self.feature_extractor = Fbank(FbankConfig(sampling_rate=16000, num_mel_bins=80, device="cpu"))
         self.input_strategy = OnTheFlyFeatures(self.feature_extractor)
-        self.trainer = Trainer(folder_path=MATERIAL_DIR, 
-                               checkpoint_path=CHECKPOINT_PATH, 
-                               freeze_modules=FREEZE_MODULES,
-                               is_streaming=IS_STREAMING)
-        
+        self.tester = Tester(folder_path=MATERIAL_DIR, 
+                        checkpoint_path=CHECKPOINT_PATH, 
+                        is_streaming=False,
+                        decoding_method="greedy_search")
     def pad_to_max_time(self, x, x_lens, pad_value=PAD_LOG):
         B, T, F = x.shape
         T_needed = int(x_lens.max().item())
@@ -58,25 +72,7 @@ class Pipeline(object):
         return out, x_lens
 
     def generate_augments(self):
-        cut_transforms = []
-        if random.random() < 0.5:
-            cut_transforms.append(ExtraPadding(extra_seconds=5))
-
-            p1 = random.random()
-            if p1 < 0.3:
-                cut_transforms.append(PerturbTempo(factors=(1.4, 1.6), p=0.99999999))
-            elif p1 < 0.6:
-                cut_transforms.append(PerturbSpeed(factors=(1.1, 1.2), p=0.999))
-
-            p2 = random.random()
-            if p2 < 0.3:
-                cut_transforms.append(PerturbVolume(p=0.999999, scale_low=0.1, scale_high=0.5))
-            elif p2 < 0.6:
-                cut_transforms.append(PerturbVolume(p=0.999999, scale_low=1.5, scale_high=2.0))
-
-            if random.random() < 0.3:
-                cut_transforms.append(ReverbWithImpulseResponse(p=0.99999))
-                
+        cut_transforms = [ExtraPadding(extra_seconds=5)]
         return cut_transforms
 
     def create_valid_loader(self):
@@ -98,14 +94,14 @@ class Pipeline(object):
         print("DataLoader is ready!")
         return loader
 
-    def train_one_epoch(self, epoch):
+    def test_one_epoch(self):
         cut_transforms = self.generate_augments()
         dataset = K2SpeechRecognitionDataset(
             input_strategy=self.input_strategy,
             cut_transforms=cut_transforms,
             return_cuts=False,     
         )
-        train_loader = DataLoader(
+        test_loader = DataLoader(
                 dataset,
                 batch_size=None,            # IMPORTANT: sampler yields variable-size batches
                 sampler=self.sampler,            # feeds batches of CutSet to dataset.collate
@@ -115,30 +111,42 @@ class Pipeline(object):
                 pin_memory=True,            # faster H2D copies later # use dataset’s collate for CutSet batches
             )
         print("[INFO] Start training epoch: Process data...")
+        
+        result = {"output" : [], "gt": []}
         batch_idx = 0
-        for batch in tqdm(train_loader):
+        for batch in tqdm(test_loader):
             x = batch["inputs"]
             x_lens = batch["supervisions"]["num_frames"]
             # Optionally move to GPU (model inputs only; features came from CPU workers)
             x, x_lens = self.pad_to_max_time(x, x_lens)
             batch["inputs"] = x
             batch["supervisions"]["num_frames"] = x_lens
-            self.trainer.train_one_batch(batch_idx, batch)
+            gt = batch["supervisions"]["text"]
+            output = self.tester(batch)
             batch_idx += 1
-        print("[INFO] Finished processing data. Start saving checkpoint...")
-        self.trainer.save(SAVE_DIR, epoch)
+            result["gt"].extend(gt)
+            assert len(gt) == len(output), f"Fail at: {len(gt)} {len(output)} {gt} {output}"
+            for o_ in output:
+                result["output"].append(str(o_).replace("▁", " ").lower())
+        all_wers = []
+        outputs = result['output']
+        gts = result['gt']
+
+        for gt, hyp in tqdm(zip(gts, outputs), total=len(gts)):
+            wer_score = jiwer.wer(
+                str(gt),
+                str(hyp),
+                truth_transform=transformation,
+                hypothesis_transform=transformation
+            )
+            all_wers.append(wer_score)
+        mean_wer = sum(all_wers) / len(all_wers)
+        results = pd.DataFrame.from_dict({"output" : outputs, "gt" : gts, "wer" : all_wers})
+        results.to_csv("trial.csv", index=True, header=True, encoding="utf-8")
+        print("[INFO] Mean WER: ", mean_wer)
 
 if __name__ == "__main__":
     pipeline = Pipeline()
-    valid_dataloader = pipeline.create_valid_loader()
-    for epoch in range(1):
-        print(f"[INFO] Starting epoch {epoch}")
-        pipeline.train_one_epoch(epoch)
-        print(f"[INFO] Finished epoch {epoch}")
-        all_wers = []
-        for batch in tqdm(valid_dataloader):
-            wers = pipeline.trainer.test(batch)
-            all_wers.extend(wers)
-        avg_wer = sum(all_wers) / len(all_wers)
-        print(f"[INFO] Average WER at epoch {epoch}: {avg_wer:.2f}")
+    # valid_dataloader = pipeline.create_valid_loader()
+    pipeline.test_one_epoch()
 

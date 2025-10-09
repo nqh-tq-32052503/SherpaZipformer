@@ -82,7 +82,7 @@ class DataPreparation(object):
         # Tính & lưu feats (hàm này có thể tạo pipeline lazy tạm thời -> ép eager sau khi xong)
         cuts_with_feats = cuts.compute_and_store_features(
             extractor=fbank,
-            storage_path=f"{out_dir}/feats",   # dir chứa .llc
+            storage_path="feats",   # dir chứa .llc
             num_jobs=8
         )
 
