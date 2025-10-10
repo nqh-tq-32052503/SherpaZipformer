@@ -98,6 +98,25 @@ class Pipeline(object):
         print("DataLoader is ready!")
         return loader
 
+    def create_train_loader(self):
+        cut_transforms = self.generate_augments()
+        dataset = K2SpeechRecognitionDataset(
+            input_strategy=self.input_strategy,
+            cut_transforms=cut_transforms,
+            return_cuts=False, 
+        )
+        train_loader = DataLoader(
+                dataset,
+                batch_size=None,            # IMPORTANT: sampler yields variable-size batches
+                sampler=self.sampler,            # feeds batches of CutSet to dataset.collate
+                num_workers=8,              # tune: 4–16 depending on CPU/IO
+                prefetch_factor=2,          # how many batches per worker to prefetch
+                persistent_workers=True,    # keep workers alive between epochs
+                pin_memory=True,            # faster H2D copies later # use dataset’s collate for CutSet batches
+            )
+        print("[INFO] Start training epoch: Process data...")
+        batch = next(iter(train_loader))
+
     def train_one_epoch(self, epoch):
         cut_transforms = self.generate_augments()
         dataset = K2SpeechRecognitionDataset(
@@ -130,15 +149,15 @@ class Pipeline(object):
 
 if __name__ == "__main__":
     pipeline = Pipeline()
-    valid_dataloader = pipeline.create_valid_loader()
+    # valid_dataloader = pipeline.create_valid_loader()
     for epoch in range(1):
         print(f"[INFO] Starting epoch {epoch}")
         pipeline.train_one_epoch(epoch)
         print(f"[INFO] Finished epoch {epoch}")
-        all_wers = []
-        for batch in tqdm(valid_dataloader):
-            wers = pipeline.trainer.test(batch)
-            all_wers.extend(wers)
-        avg_wer = sum(all_wers) / len(all_wers)
-        print(f"[INFO] Average WER at epoch {epoch}: {avg_wer:.2f}")
+        # all_wers = []
+        # for batch in tqdm(valid_dataloader):
+        #     wers = pipeline.trainer.test(batch)
+        #     all_wers.extend(wers)
+        # avg_wer = sum(all_wers) / len(all_wers)
+        # print(f"[INFO] Average WER at epoch {epoch}: {avg_wer:.2f}")
 
