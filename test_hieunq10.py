@@ -73,8 +73,9 @@ def prepare_inference_data(audio_file):
 
 def inference_one_file(audio_file):
     prepare_inference_data(audio_file)
-    test_checkpoint(valid_cuts=TEMP_DIR + "/cuts_with_feats_trim.jsonl.gz",
+    result = test_checkpoint(valid_cuts=TEMP_DIR + "/cuts_with_feats_trim.jsonl.gz",
                     checkpoint_path="./pretrained.pt",
                     material_path="./pseudo_data",
                     save_path=None,
                     save_pandas=False)
+    return result
