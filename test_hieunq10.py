@@ -67,7 +67,7 @@ def test_checkpoint(valid_cuts, checkpoint_path, material_path, save_path, prefi
 def prepare_inference_data(audio_file):
     assert os.path.exists(audio_file), "[ERROR] File not found: {0}".format(audio_file)
     list_audios = [audio_file]
-    list_transcripts = [""]
+    list_transcripts = ["Test"]
     DataPreparation(list_audios, list_transcripts, output_dir=TEMP_DIR)
     print("[INFO] Extracting FBank done")
 
