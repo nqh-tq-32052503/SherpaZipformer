@@ -25,13 +25,13 @@ from trainer import Trainer
 import time 
 
 PAD_LOG = float(torch.log(torch.tensor(1e-10)))
-TRAIN_CUTS = "/mnt/Disk800/thangnv102/gobangvts/processed_training_data/cuts_trim.jsonl.gz"
-VALID_CUTS = "/mnt/Disk800/thangnv102/gobangvts/processed_validation_data/cuts_with_feats_trim.jsonl.gz"
-MATERIAL_DIR = "/mnt/Disk800/thangnv102/gobangvts/SherpaZipformer/pseudo_data"
-CHECKPOINT_PATH = "/mnt/Disk800/thangnv102/gobangvts/pretrained.pt"
-FREEZE_MODULES = ["encoder"]
+TRAIN_CUTS = os.environ.get("TRAIN_CUTS")
+VALID_CUTS = os.environ.get("VALID_CUTS")
+MATERIAL_DIR = os.environ.get("MATERIAL_DIR")
+CHECKPOINT_PATH = os.environ.get("CHECKPOINT_PATH")
+FREEZE_MODULES = [os.environ.get("FREEZE_MODULES")]
 IS_STREAMING = False
-SAVE_DIR = "/mnt/Disk800/thangnv102/gobangvts/checkpoints-v2"
+SAVE_DIR = os.environ.get("SAVE_DIR")
 if not os.path.exists(SAVE_DIR):
     os.makedirs(SAVE_DIR)
 
