@@ -24,7 +24,7 @@ class DataPreparation(object):
         print("[INFO] Build manifests done.")
 
         print("[INFO] Compute + store FBanks...")
-        # self.compute_and_store_fbank()
+        self.compute_and_store_fbank()
         print("[INFO] FBanks done.")
 
     def build_and_save_manifests(self, wav_files, transcripts):
