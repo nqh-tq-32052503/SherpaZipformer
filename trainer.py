@@ -24,7 +24,7 @@ import os
 from tqdm import tqdm
 import math
 # Get environment variable safely (returns None if not set)
-MAX_DURATION = int(os.environ.get("MAX_DURATION"))
+
 LOG_EPS = math.log(1e-10)
 device = torch.device("cuda")
 
@@ -44,12 +44,12 @@ transformation = jiwer.Compose([
 
 
 class Trainer(object):
-    def __init__(self, folder_path, checkpoint_path, freeze_modules=[], is_streaming=False, decoding_method="greedy_search"):
+    def __init__(self, folder_path, checkpoint_path, freeze_modules=[], is_streaming=False, decoding_method="greedy_search", max_duration=300):
         parser = get_parser()
         args = parser.parse_args([])
         self.params = get_params()
         self.params.update(vars(args))
-        self.params.max_duration = MAX_DURATION
+        self.params.max_duration = max_duration
         self.params.causal = is_streaming
         self.params.decoding_method = decoding_method
         self.params.max_sym_per_frame = 1

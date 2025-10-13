@@ -11,7 +11,7 @@ import pandas as pd
 TEMP_DIR = "./temp"
 if not os.path.exists(TEMP_DIR):
     os.makedirs(TEMP_DIR)
-
+MAX_DURATION = int(os.environ.get("MAX_DURATION"))
 def test_checkpoint(valid_cuts, checkpoint_path, material_path, save_path, prefix_path=None, save_pandas=True):
     assert os.path.exists(valid_cuts) and os.path.exists(checkpoint_path) and os.path.exists(material_path), "Paths not found"
 
@@ -36,7 +36,8 @@ def test_checkpoint(valid_cuts, checkpoint_path, material_path, save_path, prefi
     tester = Tester(folder_path=material_path, 
                     checkpoint_path=checkpoint_path, 
                     is_streaming=False,
-                    decoding_method="greedy_search")
+                    decoding_method="greedy_search",
+                    max_duration=MAX_DURATION)
     outliers = []
     result = {"output" : [], "gt": []}
     batch_index = 0

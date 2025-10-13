@@ -1,6 +1,5 @@
 import os 
-MAX_DURATION = 600
-os.environ["MAX_DURATION"] = str(MAX_DURATION)
+
 import warnings
 warnings.filterwarnings(
     "ignore",
@@ -32,6 +31,7 @@ CHECKPOINT_PATH = os.environ.get("CHECKPOINT_PATH")
 FREEZE_MODULES = [os.environ.get("FREEZE_MODULES")]
 IS_STREAMING = False
 SAVE_DIR = os.environ.get("SAVE_DIR")
+MAX_DURATION = int(os.environ.get("MAX_DURATION"))
 if not os.path.exists(SAVE_DIR):
     os.makedirs(SAVE_DIR)
 
@@ -44,7 +44,8 @@ class Pipeline(object):
         self.trainer = Trainer(folder_path=MATERIAL_DIR, 
                                checkpoint_path=CHECKPOINT_PATH, 
                                freeze_modules=FREEZE_MODULES,
-                               is_streaming=IS_STREAMING)
+                               is_streaming=IS_STREAMING,
+                               max_duration=MAX_DURATION)
         
     def pad_to_max_time(self, x, x_lens, pad_value=PAD_LOG):
         B, T, F = x.shape
