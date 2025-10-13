@@ -227,11 +227,15 @@ class Tester(object):
             wav = wav.mean(0, keepdim=True)
         wav = wav.squeeze(0).to(device=device, dtype=torch.float32)
         mel = self.build_mel_transform(sr=sr, n_mels=80).to(device)
+        self.current_mel = mel
+        self.current_wav = wav
         with torch.autocast(device_type=device.type, dtype=torch.float32):
             feats = self.wav_to_logmel(wav, mel)  # [T, 80]
             feats_b = feats.unsqueeze(0)  # [1, T, 80]
             lengths = torch.tensor([feats_b.size(1)], device=device, dtype=torch.int32)
             batch = {"inputs" : feats_b, "supervisions" : {"num_frames" : lengths}}
+            self.current_batch = batch
             encoder_out, encoder_out_lens = self.encode_one_batch(batch)
+            self.current_encoder_out = {"features" : encoder_out, "lens" : encoder_out_lens}
             output_texts = self.decode(encoder_out, encoder_out_lens)
             return output_texts
