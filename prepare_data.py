@@ -9,7 +9,7 @@ import pandas as pd
 
 
 class DataPreparation(object):
-    def __init__(self, list_audios, list_transcripts, output_dir="manifests"):
+    def __init__(self, list_audios, list_transcripts, output_dir="manifests", extract_fbank=True):
         """
         Args:
             list_audios: list đường dẫn WAV
@@ -24,7 +24,8 @@ class DataPreparation(object):
         print("[INFO] Build manifests done.")
 
         print("[INFO] Compute + store FBanks...")
-        self.compute_and_store_fbank()
+        if extract_fbank:
+            self.compute_and_store_fbank()
         print("[INFO] FBanks done.")
 
     def build_and_save_manifests(self, wav_files, transcripts):
@@ -147,7 +148,7 @@ def process():
     print("[INFO] Total audios: {0}".format(len(list_audios))) 
     DataPreparation(list_audios, list_transcripts, OUTPUT_DIR)
 
-# if __name__ == "__main__":
-#     process()
+if __name__ == "__main__":
+    process()
     # main()
     # SAMPLE: python prepare_data.py --data_path='/data/audio_data/valid.csv' --output_dir='/data/audio_data/valid_feats'
