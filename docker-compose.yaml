@@ -1,0 +1,11 @@
+version: "3.11.13"
+
+services:
+  sherpa-http:
+    build:
+      context: .        # folder containing Dockerfile, app.py, models/
+      dockerfile: Dockerfile
+    container_name: sherpa-http
+    ports:
+      - "8002:8000"     # host:container
+    restart: unless-stopped
