@@ -147,7 +147,7 @@ def process():
     print("[INFO] Total audios: {0}".format(len(list_audios))) 
     DataPreparation(list_audios, list_transcripts, OUTPUT_DIR)
 
-if __name__ == "__main__":
-    process()
+# if __name__ == "__main__":
+#     process()
     # main()
     # SAMPLE: python prepare_data.py --data_path='/data/audio_data/valid.csv' --output_dir='/data/audio_data/valid_feats'

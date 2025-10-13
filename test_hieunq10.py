@@ -1,14 +1,18 @@
 from lhotse import load_manifest
 from lhotse.dataset import K2SpeechRecognitionDataset
 from lhotse.dataset.sampling import SimpleCutSampler
-
+from prepare_data import DataPreparation
 from torch.utils.data import DataLoader
 from tester import Tester
 import os
 from tqdm import tqdm
 import pandas as pd
 
-def test_checkpoint(valid_cuts, checkpoint_path, material_path, save_path, prefix_path=None):
+TEMP_DIR = "./temp"
+if not os.path.exists(TEMP_DIR):
+    os.makedirs(TEMP_DIR)
+
+def test_checkpoint(valid_cuts, checkpoint_path, material_path, save_path, prefix_path=None, save_pandas=True):
     assert os.path.exists(valid_cuts) and os.path.exists(checkpoint_path) and os.path.exists(material_path), "Paths not found"
 
     cuts = load_manifest(valid_cuts)  # <-- EAGER + đã TRIM
@@ -54,6 +58,23 @@ def test_checkpoint(valid_cuts, checkpoint_path, material_path, save_path, prefi
         print(batch["supervisions"]["text"])
         batch_index += 1
 
-    
-    df = pd.DataFrame(result)
-    df.to_csv(save_path, index=False, encoding="utf-8")
+    if save_pandas:
+        df = pd.DataFrame(result)
+        df.to_csv(save_path, index=False, encoding="utf-8")
+    else:
+        return result["output"]
+
+def prepare_inference_data(audio_file):
+    assert os.path.exists(audio_file), "[ERROR] File not found: {0}".format(audio_file)
+    list_audios = [audio_file]
+    list_transcripts = [""]
+    DataPreparation(list_audios, list_transcripts, output_dir=TEMP_DIR)
+    print("[INFO] Extracting FBank done")
+
+def inference_one_file(audio_file):
+    prepare_inference_data(audio_file)
+    test_checkpoint(valid_cuts=TEMP_DIR + "/cuts_with_feats_trim.jsonl.gz",
+                    checkpoint_path="./pretrained.pt",
+                    material_path="./pseudo_data",
+                    save_path=None,
+                    save_pandas=False)
