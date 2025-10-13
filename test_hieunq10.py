@@ -64,10 +64,9 @@ def test_checkpoint(valid_cuts, checkpoint_path, material_path, save_path, prefi
     else:
         return result["output"]
 
-def prepare_inference_data(audio_file):
-    assert os.path.exists(audio_file), "[ERROR] File not found: {0}".format(audio_file)
-    list_audios = [audio_file]
-    list_transcripts = ["Test"]
+def prepare_inference_data(audio_files):
+    list_audios = audio_files
+    list_transcripts = ["Test"] * len(audio_files)
     DataPreparation(list_audios, list_transcripts, output_dir=TEMP_DIR)
     print("[INFO] Extracting FBank done")
 
@@ -79,3 +78,12 @@ def inference_one_file(audio_file):
                     save_path=None,
                     save_pandas=False)
     return result
+
+def inference_files(audio_files):
+    prepare_inference_data(audio_files)
+    results = test_checkpoint(valid_cuts=TEMP_DIR + "/cuts_with_feats_trim.jsonl.gz",
+                    checkpoint_path="./pretrained.pt",
+                    material_path="./pseudo_data",
+                    save_path=None,
+                    save_pandas=False)
+    return results
