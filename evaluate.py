@@ -1,6 +1,8 @@
 # pip install -q jiwer==3.0.3
 
 import jiwer
+import torchaudio
+
 
 transformation = jiwer.Compose([
     jiwer.RemovePunctuation(),
@@ -38,3 +40,8 @@ def compute_wer(refs, hyps, return_scalar=True):
         return wer
     else:
         return all_wer
+
+def get_duration(audio_path):
+    info = torchaudio.info(audio_path)
+    duration = info.num_frames / info.sample_rate
+    return duration
