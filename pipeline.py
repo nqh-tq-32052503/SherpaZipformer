@@ -60,7 +60,7 @@ class Pipeline(object):
 
     def generate_augments(self):
         cut_transforms = []
-        if random.random() < 0.5:
+        if random.random() < 0.7:
             cut_transforms.append(ExtraPadding(extra_seconds=5))
 
             p1 = random.random()
@@ -120,6 +120,7 @@ class Pipeline(object):
 
     def train_one_epoch(self, epoch):
         cut_transforms = self.generate_augments()
+        print("[INFO] {0} augmentations are applied!".format(len(cut_transforms)))
         dataset = K2SpeechRecognitionDataset(
             input_strategy=self.input_strategy,
             cut_transforms=cut_transforms,
