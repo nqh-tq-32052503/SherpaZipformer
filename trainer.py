@@ -3,6 +3,7 @@ import re
 import torch
 import sentencepiece as spm
 from torch.cuda.amp import GradScaler
+from torch.nn.parallel import DistributedDataParallel as DDP
 import warnings
 import copy
 
@@ -44,13 +45,15 @@ transformation = jiwer.Compose([
 
 
 class Trainer(object):
-    def __init__(self, folder_path, checkpoint_path, freeze_modules=[], is_streaming=False, decoding_method="greedy_search", max_duration=300):
+    def __init__(self, folder_path, checkpoint_path, freeze_modules=[], is_streaming=False, decoding_method="greedy_search", max_duration=300, rank=0, use_ddp=False):
         parser = get_parser()
         args = parser.parse_args([])
         self.params = get_params()
         self.params.update(vars(args))
         self.params.max_duration = max_duration
         self.params.causal = is_streaming
+        self.rank = rank
+        self.use_ddp = use_ddp
         self.params.decoding_method = decoding_method
         self.params.max_sym_per_frame = 1
         self.token_table = k2.SymbolTable.from_file(folder_path + "/tokens.txt")
@@ -64,6 +67,7 @@ class Trainer(object):
         print("[INFO] Init optimizer, scaler, scheduler")
         self.freeze_modules = freeze_modules
         self.init_supporters()
+        
         print("[INFO] Finish")
         
     def load_model(self, checkpoint_path):
@@ -80,7 +84,8 @@ class Trainer(object):
             
         else:
             print("[INFO] Train from scratch")
-        self.model_avg = copy.deepcopy(self.model).to(torch.float64)
+        if self.rank == 0:
+            self.model_avg = copy.deepcopy(self.model).to(torch.float64)
 
     def init_supporters(self):
         self.scaler = GradScaler(enabled=self.params.use_fp16, init_scale=1.0)
