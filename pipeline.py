@@ -32,6 +32,7 @@ FREEZE_MODULES = [os.environ.get("FREEZE_MODULES")]
 IS_STREAMING = False
 SAVE_DIR = os.environ.get("SAVE_DIR")
 MAX_DURATION = int(os.environ.get("MAX_DURATION"))
+AUGMENT_PROB = float(os.environ.get("AUGMENT_PROB", "0.5"))
 if not os.path.exists(SAVE_DIR):
     os.makedirs(SAVE_DIR)
 
@@ -60,7 +61,7 @@ class Pipeline(object):
 
     def generate_augments(self):
         cut_transforms = []
-        if random.random() < 0.7:
+        if random.random() < AUGMENT_PROB:
             cut_transforms.append(ExtraPadding(extra_seconds=5))
 
             p1 = random.random()
