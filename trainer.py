@@ -26,7 +26,7 @@ import math
 # Get environment variable safely (returns None if not set)
 
 LOG_EPS = math.log(1e-10)
-device = torch.device("cuda")
+device = os.environ.get("DEVICE") if hasattr(os.environ, "DEVICE") else 0
 
 import jiwer
 from tqdm import tqdm
