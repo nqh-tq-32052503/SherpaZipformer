@@ -20,7 +20,7 @@ import torchaudio
 # Get environment variable safely (returns None if not set)
 
 LOG_EPS = math.log(1e-10)
-device = torch.device("cuda")
+device = torch.device(os.environ.get("DEVICE", "cuda"))
 
 
 class Tester(object):
