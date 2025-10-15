@@ -121,12 +121,20 @@ class Trainer(object):
             ids.append(self.sp.encode(upper_text, out_type=int))
         return ids
 
+    def normalize_batch(self, features):
+        # Normalize per utterance
+        mean = features.mean(dim=-1, keepdim=True)
+        std = features.std(dim=-1, keepdim=True) + 1e-5
+        features = (features - mean) / std
+        return features
+
+
     def compute_loss(self, batch):
         feature = batch["inputs"]
         # at entry, feature is (N, T, C)
         assert feature.ndim == 3
         feature = feature.to(device)
-
+        feature = self.normalize_batch(feature)
         supervisions = batch["supervisions"]
         feature_lens = supervisions["num_frames"].to(device)
 
