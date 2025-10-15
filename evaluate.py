@@ -2,7 +2,7 @@
 
 import jiwer
 import torchaudio
-
+from tqdm import tqdm
 
 transformation = jiwer.Compose([
     jiwer.RemovePunctuation(),
@@ -25,7 +25,8 @@ def compute_wer(refs, hyps, return_scalar=True):
     """
     assert len(refs) == len(hyps), f"len(refs)={len(refs)} != len(hyps)={len(hyps)}"
     all_wer = []
-    for pred, gt in zip(hyps, refs):
+    hyps = [str(x) for x in hyps]
+    for pred, gt in tqdm(zip(hyps, refs)):
         t_pred = pred.replace("▁", " ").lower()
         wer_score = jiwer.wer(
             gt,
