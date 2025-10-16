@@ -21,7 +21,7 @@ def test_checkpoint(valid_cuts, checkpoint_path, material_path, save_path, prefi
     print(len(cuts))  # OK
 
     dataset = K2SpeechRecognitionDataset(cuts)
-    sampler = SimpleCutSampler(cuts, max_duration=600, max_cuts=50, shuffle=False)
+    sampler = SimpleCutSampler(cuts, max_duration=MAX_DURATION, max_cuts=100, shuffle=False)
 
     loader = DataLoader(
         dataset,

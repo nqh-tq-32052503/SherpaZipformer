@@ -3,6 +3,7 @@
 import jiwer
 import torchaudio
 from tqdm import tqdm
+import torch
 
 transformation = jiwer.Compose([
     jiwer.RemovePunctuation(),
@@ -46,3 +47,29 @@ def get_duration(audio_path):
     info = torchaudio.info(audio_path)
     duration = info.num_frames / info.sample_rate
     return duration
+
+def merge_audio(wav_paths, output_path):
+# wav_paths = [
+#     "/path/audio1.wav",
+#     "/path/audio2.wav",
+#     "/path/audio3.wav"
+# ]
+# output_path = "/path/output.wav"
+
+    waveforms = []
+    sample_rate = None
+
+    for p in wav_paths:
+        wav, sr = torchaudio.load(p)
+        if sample_rate is None:
+            sample_rate = sr
+        elif sr != sample_rate:
+            raise ValueError(f"Sample rate mismatch: {p} has {sr}, expected {sample_rate}")
+        waveforms.append(wav)
+
+    # Concatenate along the time dimension
+    concatenated = torch.cat(waveforms, dim=1)
+
+    # Save result
+    torchaudio.save(output_path, concatenated, sample_rate)
+    print(f"✅ Concatenated WAV saved to {output_path}")

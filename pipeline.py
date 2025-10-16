@@ -64,21 +64,21 @@ class Pipeline(object):
         if random.random() < AUGMENT_PROB:
             cut_transforms.append(ExtraPadding(extra_seconds=5))
 
-            p1 = random.random()
-            if p1 < 0.3:
-                cut_transforms.append(PerturbTempo(factors=(1.4, 1.6), p=0.99999999))
-            elif p1 < 0.6:
-                cut_transforms.append(PerturbSpeed(factors=(1.1, 1.2), p=0.999))
+        if random.random() < 0.5:
+            cut_transforms.append(PerturbTempo(factors=(1.4, 1.6), p=0.8))
+        else:
+            cut_transforms.append(PerturbSpeed(factors=(1.1, 1.2), p=0.8))
 
-            p2 = random.random()
-            if p2 < 0.3:
-                cut_transforms.append(PerturbVolume(p=0.999999, scale_low=0.1, scale_high=0.5))
-            elif p2 < 0.6:
-                cut_transforms.append(PerturbVolume(p=0.999999, scale_low=1.5, scale_high=2.0))
+        if random.random() < 0.5:
+            cut_transforms.append(PerturbVolume(p=0.8, scale_low=0.1, scale_high=0.5))
+        else:
+            cut_transforms.append(PerturbVolume(p=0.8, scale_low=1.5, scale_high=2.0))
 
-            if random.random() < 0.3:
-                cut_transforms.append(ReverbWithImpulseResponse(p=0.99999))
-                
+        if random.random() < 0.5:
+            cut_transforms.append(ReverbWithImpulseResponse(p=0.8))
+        if len(cut_transforms) >= 2:
+            random.shuffle(cut_transforms)
+
         return cut_transforms
 
     def create_valid_loader(self):
