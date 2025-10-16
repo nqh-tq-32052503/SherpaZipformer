@@ -84,7 +84,7 @@ class DataPreparation(object):
         cuts_with_feats = cuts.compute_and_store_features(
             extractor=fbank,
             storage_path="feats",   # dir chứa .llc
-            num_jobs=8
+            num_jobs=1
         )
 
         # ÉP EAGER + LƯU: manifest cuối cùng dành cho TRAIN
