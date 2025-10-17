@@ -42,7 +42,7 @@ print("[INFO] Frozen modules: ", FREEZE_MODULES)
 class Pipeline(object):
     def __init__(self):
         self.cuts = load_manifest(TRAIN_CUTS)
-        self.sampler = SimpleCutSampler(self.cuts, max_duration=MAX_DURATION, max_cuts=50, shuffle=True)
+        self.sampler = SimpleCutSampler(self.cuts, max_duration=MAX_DURATION, max_cuts=300, shuffle=True)
         self.feature_extractor = Fbank(FbankConfig(sampling_rate=16000, num_mel_bins=80, device="cpu"))
         self.input_strategy = OnTheFlyFeatures(self.feature_extractor)
         self.trainer = Trainer(folder_path=MATERIAL_DIR, 
