@@ -74,13 +74,20 @@ class Trainer(object):
         self.model = get_model(self.params)
         if os.path.exists(checkpoint_path):
             checkpoint = torch.load(checkpoint_path, map_location="cpu", weights_only=False)
-            dst_state_dict = self.model.state_dict()
-            src_state_dict = checkpoint["model"]
-            for key in dst_state_dict.keys():
-                src_key = key
-                dst_state_dict[key] = src_state_dict.pop(src_key)
-            assert len(src_state_dict) == 0
-            self.model.load_state_dict(dst_state_dict, strict=False)
+            # dst_state_dict = self.model.state_dict()
+            # src_state_dict = checkpoint["model"]
+            # for key in dst_state_dict.keys():
+            #     src_key = key
+            #     dst_state_dict[key] = src_state_dict.pop(src_key)
+            # assert len(src_state_dict) == 0
+            model_dict = self.model.state_dict()
+
+            # Filter only keys that match in name AND shape
+            compatible_state_dict = {
+                k: v for k, v in checkpoint.items()
+                if k in model_dict and v.shape == model_dict[k].shape
+            }
+            self.model.load_state_dict(compatible_state_dict, strict=False)
             
         else:
             print("[INFO] Train from scratch")
