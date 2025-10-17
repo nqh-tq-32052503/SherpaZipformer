@@ -188,7 +188,11 @@ class Tester(object):
             output = "".join(h_ for h_ in hyp)
             output_texts.append(output)
         return output_texts
-    def __call__(self, batch):
+    def __call__(self, batch, is_sherpa_format=True):
         encoder_out, encoder_out_lens = self.encode_one_batch(batch)
         output_texts = self.decode(encoder_out, encoder_out_lens)
-        return output_texts
+        if not is_sherpa_format:
+            final_outputs = [t.replace("▁", " ").lower() for t in output_texts]
+            return final_outputs
+        else:
+            return output_texts

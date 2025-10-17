@@ -14,7 +14,7 @@ transformation = jiwer.Compose([
     jiwer.ReduceToListOfListOfWords(),
 ])
 
-def compute_wer(refs, hyps, return_scalar=True):
+def compute_wer(refs, hyps, return_scalar=True, is_sherpa_format=True):
     """
     Compute WER given references and hypotheses.
 
@@ -28,7 +28,10 @@ def compute_wer(refs, hyps, return_scalar=True):
     all_wer = []
     hyps = [str(x) for x in hyps]
     for pred, gt in tqdm(zip(hyps, refs)):
-        t_pred = pred.replace("▁", " ").lower()
+        if is_sherpa_format:
+            t_pred = pred.replace("▁", " ").lower()
+        else:
+            t_pred = pred
         wer_score = jiwer.wer(
             gt,
             t_pred,
