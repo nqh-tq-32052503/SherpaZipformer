@@ -80,7 +80,7 @@ class Trainer(object):
                 src_key = key
                 dst_state_dict[key] = src_state_dict.pop(src_key)
             assert len(src_state_dict) == 0
-            self.model.load_state_dict(dst_state_dict, strict=True)
+            self.model.load_state_dict(dst_state_dict, strict=False)
             
         else:
             print("[INFO] Train from scratch")
