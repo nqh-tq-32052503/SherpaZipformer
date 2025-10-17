@@ -153,7 +153,7 @@ class Pipeline(object):
         print("[INFO] Finished processing data. Start saving checkpoint...")
         checkpoint_path = self.trainer.save(SAVE_DIR, epoch)
         result = test_checkpoint(valid_cuts=VALID_CUTS, checkpoint_path=checkpoint_path, material_path="./pseudo_data", prefix_path=PREFIX_PATH, save_path=None, save_pandas=False)
-        wer_score = compute_wer(result["output"], result["gt"], return_scalar=True, is_sherpa_format=False)
+        wer_score = compute_wer(result["gt"], result["output"], return_scalar=True, is_sherpa_format=False)
         print(f"[INFO] WER at checkpoint {epoch}: {wer_score}")
 
 if __name__ == "__main__":
