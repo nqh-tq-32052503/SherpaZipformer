@@ -22,6 +22,8 @@ from tqdm import tqdm
 import random
 from trainer import Trainer
 import time 
+from test_hieunq10 import test_checkpoint
+from evaluate import compute_wer
 
 PAD_LOG = float(torch.log(torch.tensor(1e-10)))
 TRAIN_CUTS = os.environ.get("TRAIN_CUTS")
@@ -33,6 +35,7 @@ IS_STREAMING = False
 SAVE_DIR = os.environ.get("SAVE_DIR")
 MAX_DURATION = int(os.environ.get("MAX_DURATION"))
 AUGMENT_PROB = float(os.environ.get("AUGMENT_PROB", "0.5"))
+PREFIX_PATH = os.environ.get("PREFIX_PATH")
 if not os.path.exists(SAVE_DIR):
     os.makedirs(SAVE_DIR)
 
@@ -148,7 +151,10 @@ class Pipeline(object):
             self.trainer.train_one_batch(batch_idx, batch)
             batch_idx += 1
         print("[INFO] Finished processing data. Start saving checkpoint...")
-        self.trainer.save(SAVE_DIR, epoch)
+        checkpoint_path = self.trainer.save(SAVE_DIR, epoch)
+        result = test_checkpoint(valid_cuts=VALID_CUTS, checkpoint_path=checkpoint_path, material_path="./pseudo_data", save_path=None, save_pandas=False)
+        wer_score = compute_wer(result["output"], result["gt"], return_scalar=True, is_sherpa_format=False)
+        print(f"[INFO] WER at checkpoint {epoch}: {wer_score}")
 
 if __name__ == "__main__":
     pipeline = Pipeline()

@@ -210,6 +210,7 @@ class Trainer(object):
     def save(self, checkpoint_folder, epoch):
         print("[INFO] Save checkpoint...")
         filename = f"{checkpoint_folder}/checkpoint-{epoch}.pt"
+        print("[INFO] Checkpoint saved at: ", filename)
         save_checkpoint(
             filename=filename,
             model=self.model,
@@ -221,6 +222,8 @@ class Trainer(object):
             sampler=None,
             rank=0,
         )
+        return filename
+    
     def train_one_epoch(self, train_dataloader, checkpoint_folder, epoch=0):
         tot_loss = MetricsTracker()
         cur_batch_idx = self.params.get("cur_batch_idx", 0)

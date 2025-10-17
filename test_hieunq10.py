@@ -63,7 +63,7 @@ def test_checkpoint(valid_cuts, checkpoint_path, material_path, save_path, prefi
         df = pd.DataFrame(result)
         df.to_csv(save_path, index=False, encoding="utf-8")
     else:
-        return result["output"]
+        return result
 
 def prepare_inference_data(audio_files):
     list_audios = audio_files
