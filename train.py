@@ -5,6 +5,7 @@ from evaluate import compute_wer
 
 
 VALID_CUTS = os.environ.get("VALID_CUTS")
+PREFIX_PATH = os.environ.get("PREFIX_PATH")
 pipeline = Pipeline()
 num_epochs = int(os.environ.get("NUM_EPOCHS"))
 for epoch in range(num_epochs):
