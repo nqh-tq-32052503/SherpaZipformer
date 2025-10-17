@@ -30,7 +30,7 @@ TRAIN_CUTS = os.environ.get("TRAIN_CUTS")
 VALID_CUTS = os.environ.get("VALID_CUTS")
 MATERIAL_DIR = os.environ.get("MATERIAL_DIR")
 CHECKPOINT_PATH = os.environ.get("CHECKPOINT_PATH")
-FREEZE_MODULES = [os.environ.get("FREEZE_MODULES")]
+FREEZE_MODULES = os.environ.get("FREEZE_MODULES").split("+")
 IS_STREAMING = False
 SAVE_DIR = os.environ.get("SAVE_DIR")
 MAX_DURATION = int(os.environ.get("MAX_DURATION"))
@@ -38,7 +38,7 @@ AUGMENT_PROB = float(os.environ.get("AUGMENT_PROB", "0.5"))
 PREFIX_PATH = os.environ.get("PREFIX_PATH")
 if not os.path.exists(SAVE_DIR):
     os.makedirs(SAVE_DIR)
-
+print("[INFO] Frozen modules: ", FREEZE_MODULES)
 class Pipeline(object):
     def __init__(self):
         self.cuts = load_manifest(TRAIN_CUTS)
