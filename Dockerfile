@@ -1,34 +1,54 @@
-# Dockerfile
-FROM python:3.11.13
+# ---- Base: CUDA 12.4 runtime with cuDNN (Ubuntu 22.04) ----
+FROM nvidia/cuda:12.4.1-cudnn-runtime-ubuntu22.04
 
-ENV PYTHONUNBUFFERED=1
+ENV DEBIAN_FRONTEND=noninteractive \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PATH="/opt/venv/bin:$PATH"
 
-# System deps: ffmpeg for decoding, libsndfile for soundfile, libgomp for onnx runtime
+# System deps (Python 3.11 + audio libs + git)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    ffmpeg libsndfile1 libgomp1 && \
-    rm -rf /var/lib/apt/lists/*
+    python3.11 python3.11-venv python3-pip \
+    ffmpeg libsndfile1 git ca-certificates curl \
+    && rm -rf /var/lib/apt/lists/*
 
-# Python deps
-RUN pip install --no-cache-dir \
-    fastapi uvicorn[standard] numpy python-multipart
+# Create a clean virtualenv
+RUN python3.11 -m venv /opt/venv && /opt/venv/bin/pip install --upgrade pip setuptools wheel
 
-RUN pip install torch==2.6.0 torchvision==0.21.0 torchaudio==2.6.0 \
- --index-url https://download.pytorch.org/whl/cu124
+# -------- Python deps (mirror the notebook) --------
+# Torch stack (CUDA 12.4 wheels)
+RUN pip install --extra-index-url https://download.pytorch.org/whl/cu124 \
+    torch==2.6.0 torchvision==0.21.0 torchaudio==2.6.0
 
+# Core libs the notebook used
+RUN pip install \
+    fastapi==0.115.4 uvicorn[standard]==0.32.0 \
+    jiwer==3.0.3 sentencepiece tensorboard \
+    kaldialign kaldilm kaldifst
+
+# Lhotse (from Git, as in your notebook)
+RUN pip install "git+https://github.com/lhotse-speech/lhotse"
+
+# ---- Optional: install k2 from a local wheel (recommended for CUDA 12.4) ----
+# Put your wheel in ./wheels before building (example: k2-1.24.4.dev20250715+cuda12.4...cp311-manylinux2014_x86_64.whl)
+# If no wheel is provided, this layer will be a no-op.
 RUN wget https://huggingface.co/csukuangfj/k2/resolve/main/ubuntu-cuda/k2-1.24.4.dev20250715+cuda12.4.torch2.6.0-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
+RUN pip install ./k2-1.24.4.dev20250715+cuda12.4.torch2.6.0-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
 
-RUN pip install ./k2-1.24.4.dev20250715+cuda12.4.torch2.6.0-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.whl 
 
-RUN pip install git+https://github.com/lhotse-speech/lhotse
-
-RUN pip install kaldifst kaldilm kaldialign sentencepiece tensorboard
-
-RUN pip install jiwer==3.0.3
-# Copy model files into the image (or mount at runtime)
-# Ensure you have tokens.txt + either (encoder/decoder/joiner) or paraformer.onnx
-
+# ---- App code ----
+WORKDIR /app
 RUN wget https://huggingface.co/zzasdf/viet_iter3_pseudo_label/resolve/main/exp/pretrained.pt
-COPY app.py /app/app.py
+# (Copy only dependency descriptors first if you later add a requirements.txt to speed caching)
+COPY . /app
 
-EXPOSE 8000
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
+# Health + ports
+EXPOSE 8002
+
+# Helpful defaults for deterministic threading
+ENV OMP_NUM_THREADS=1 MKL_NUM_THREADS=1
+
+# ---- Run FastAPI (adjust target if your module/path differs) ----
+# Single worker by default (good for GPU). Scale via process manager if needed.
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8002"]
