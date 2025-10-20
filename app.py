@@ -23,10 +23,11 @@ SAMPLE_RATE = 16000
 
 # TODO: load your model/decoder once at startup
 @app.on_event("startup")
-async def startup():
+def _load():
     # Example:
     # global asr
     # asr = YourASR.load_from_checkpoint("/models/ckpt.pt")
+    global MODEL
     MODEL = Tester(folder_path="./pseudo_data", checkpoint_path="./pretrained.pt", is_streaming=False, decoding_method="greedy_search", max_duration=300)
 
 @app.get("/health")
