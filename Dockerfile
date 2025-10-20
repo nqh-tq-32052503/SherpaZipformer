@@ -34,6 +34,8 @@ RUN pip install \
 # Lhotse (from Git, as in your notebook)
 RUN pip install "git+https://github.com/lhotse-speech/lhotse"
 
+RUN pip install python-multipart
+
 # ---- Optional: install k2 from a local wheel (recommended for CUDA 12.4) ----
 # Put your wheel in ./wheels before building (example: k2-1.24.4.dev20250715+cuda12.4...cp311-manylinux2014_x86_64.whl)
 # If no wheel is provided, this layer will be a no-op.
