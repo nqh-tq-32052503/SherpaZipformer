@@ -37,11 +37,9 @@ RUN pip install "git+https://github.com/lhotse-speech/lhotse"
 # ---- Optional: install k2 from a local wheel (recommended for CUDA 12.4) ----
 # Put your wheel in ./wheels before building (example: k2-1.24.4.dev20250715+cuda12.4...cp311-manylinux2014_x86_64.whl)
 # If no wheel is provided, this layer will be a no-op.
-ARG K2_WHEEL_URL="https://huggingface.co/csukuangfj/k2/resolve/main/ubuntu-cuda/k2-1.24.4.dev20250715+cuda12.4.torch2.6.0-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.whl"
+ARG K2_WHEEL_URL="https://huggingface.co/csukuangfj/k2/resolve/main/ubuntu-cuda/k2-1.24.4.dev20250715+cuda12.4.torch2.6.0-cp311-cp311-manylinux2014_x86_64.whl"
 RUN set -eux; \
-    curl -L --retry 5 --retry-all-errors --fail \
-         -o /tmp/k2.whl \
-         "$K2_WHEEL_URL"; \
+    wget --progress=dot:giga --tries=5 --timeout=30 -O /tmp/k2.whl "$K2_WHEEL_URL"; \
     pip install /tmp/k2.whl && rm -f /tmp/k2.whl
 
 
