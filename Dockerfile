@@ -43,7 +43,7 @@ RUN pip install "git+https://github.com/lhotse-speech/lhotse"
 WORKDIR /app
 # (Copy only dependency descriptors first if you later add a requirements.txt to speed caching)
 COPY . /app
-
+RUN pip install ./k2-1.24.4.dev20250715+cuda12.4.torch2.6.0-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
 # Health + ports
 EXPOSE 8002
 
