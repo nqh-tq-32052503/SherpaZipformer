@@ -1,0 +1,13 @@
+git clone https://github.com/nqh-tq-32052503/SherpaZipformer.git
+
+wget https://huggingface.co/csukuangfj/k2/resolve/main/ubuntu-cuda/k2-1.24.4.dev20250715+cuda12.4.torch2.6.0-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
+
+wget https://huggingface.co/zzasdf/viet_iter3_pseudo_label/resolve/main/exp/pretrained.pt
+
+docker build -t stt-fastapi:cu124 .
+
+docker run --rm -p 8002:8002 --gpus all stt-fastapi:cu124
+
+cd .......
+
+curl -X POST "http://localhost:8002/inference" -H "accept: application/json" -H "Content-Type: multipart/form-data" -F "file=@input.wav"
