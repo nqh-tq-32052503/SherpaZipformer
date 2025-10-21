@@ -11,3 +11,5 @@ docker run --rm -p 8002:8002 --gpus all stt-fastapi:cu124
 cd .......
 
 curl -X POST "http://localhost:8002/inference" -H "accept: application/json" -H "Content-Type: multipart/form-data" -F "file=@input.wav"
+
+nohup docker run -d --rm -p 8002:8002 --gpus all stt-fastapi:cu124 > server.log 2>&1 &
