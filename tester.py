@@ -24,7 +24,7 @@ device = torch.device(os.environ.get("DEVICE", "cuda"))
 
 
 class Tester(object):
-    def __init__(self, folder_path, checkpoint_path, is_streaming=False, decoding_method="greedy_search", max_duration=300):
+    def __init__(self, folder_path, checkpoint_path, is_streaming=False, decoding_method="greedy_search", max_duration=300, return_timestamps=True):
         parser = get_parser()
         args = parser.parse_args([])
         self.params = get_params()
@@ -35,6 +35,7 @@ class Tester(object):
         self.token_table = k2.SymbolTable.from_file(folder_path + "/tokens.txt")
         self.params.blank_id = self.token_table["<blk>"]
         self.params.vocab_size = max(self.tokens()) + 1
+        self.return_timestamps = return_timestamps
         self.sp = spm.SentencePieceProcessor()
         self.sp.load(folder_path + "/bpe.model")
         print("[INFO] Load model...")
@@ -112,30 +113,44 @@ class Tester(object):
 
     def decode(self, encoder_out, encoder_out_lens):
         hyps = []
-
+        timestamps = []
+        print("[INFO] Return timestamps: ", self.return_timestamps)
         if self.params.decoding_method == "greedy_search" and self.params.max_sym_per_frame == 1:
-            hyp_tokens = greedy_search_batch(
+            answers = greedy_search_batch(
                 model=self.model,
                 encoder_out=encoder_out,
                 encoder_out_lens=encoder_out_lens,
                 blank_penalty=self.params.blank_penalty,
+                return_timestamps=self.return_timestamps
             )
+            if self.return_timestamps:
+                hyp_tokens = answers.hyps
+                timestamps.extend(answers.timestamps)
+            else:
+                hyp_tokens = answers
             for i in range(encoder_out.size(0)):
                 hyps.append([self.token_table[idx] for idx in hyp_tokens[i]])
+            
         elif self.params.decoding_method == "modified_beam_search":
-            hyp_tokens = modified_beam_search(
+            answers = modified_beam_search(
                 model=self.model,
                 encoder_out=encoder_out,
                 encoder_out_lens=encoder_out_lens,
                 blank_penalty=self.params.blank_penalty,
                 beam=self.params.beam_size,
+                return_timestamps=self.return_timestamps
             )
+            if self.return_timestamps:
+                hyp_tokens = answers.hyps
+                timestamps.extend(answers.timestamps)
+            else:
+                hyp_tokens = answers
             for i in range(encoder_out.size(0)):
                 hyps.append([self.token_table[idx] for idx in hyp_tokens[i]])
         elif "fast_beam_search" in self.params.decoding_method:
             decoding_graph = k2.trivial_graph(self.params.vocab_size - 1, device=device)
             if  self.params.decoding_method == "fast_beam_search_one_best":
-                hyp_tokens = fast_beam_search_one_best(
+                answers = fast_beam_search_one_best(
                     model=self.model,
                     decoding_graph=decoding_graph,
                     encoder_out=encoder_out,
@@ -144,17 +159,29 @@ class Tester(object):
                     max_contexts=self.params.max_contexts,
                     max_states=self.params.max_states,
                     blank_penalty=self.params.blank_penalty,
+                    return_timestamps=self.return_timestamps
                 )
+                if self.return_timestamps:
+                    hyp_tokens = answers.hyps
+                    timestamps.extend(answers.timestamps)
+                else:
+                    hyp_tokens = answers
                 for i in range(encoder_out.size(0)):
                     hyps.append([self.token_table[idx] for idx in hyp_tokens[i]])
-        elif    self.params.decoding_method == "modified_beam_search":
-            hyp_tokens = modified_beam_search(
+        elif self.params.decoding_method == "modified_beam_search":
+            answers = modified_beam_search(
                 model=self.model,
                 encoder_out=encoder_out,
                 encoder_out_lens=encoder_out_lens,
                 blank_penalty=self.params.blank_penalty,
                 beam=self.params.beam_size,
+                return_timestamps=self.return_timestamps
             )
+            if self.return_timestamps:
+                hyp_tokens = answers.hyps
+                timestamps.extend(answers.timestamps)
+            else:
+                hyp_tokens = hyps
             for i in range(encoder_out.size(0)):
                 hyps.append([self.token_table[idx] for idx in hyp_tokens[i]]) 
         else:
@@ -165,19 +192,31 @@ class Tester(object):
                 encoder_out_i = encoder_out[i:i + 1, :encoder_out_lens[i]]
                 # fmt: on
                 if self.params.decoding_method == "greedy_search":
-                    hyp = greedy_search(
+                    answer = greedy_search(
                         model=self.model,
                         encoder_out=encoder_out_i,
                         max_sym_per_frame=self.params.max_sym_per_frame,
                         blank_penalty=self.params.blank_penalty,
+                        return_timestamps=self.return_timestamps
                     )
+                    if self.return_timestamps:
+                        hyp = answer.hyps[0]
+                        timestamps.extend(answer.timestamps[0])
+                    else:
+                        hyp = answer
                 elif self.params.decoding_method == "beam_search":
-                    hyp = beam_search(
+                    answer = beam_search(
                         model=self.model,
                         encoder_out=encoder_out_i,
                         beam=self.params.beam_size,
                         blank_penalty=self.params.blank_penalty,
+                        return_timestamps=self.return_timestamps
                     )
+                    if self.return_timestamps:
+                        hyp = answer.hyps[0]
+                        timestamps.extend(answer.timestamps[0])
+                    else:
+                        hyp = answer
                 else:
                     raise ValueError(
                         f"Unsupported decoding method: {self.decoding_method}"
@@ -187,12 +226,12 @@ class Tester(object):
         for hyp in hyps:
             output = "".join(h_ for h_ in hyp)
             output_texts.append(output)
-        return output_texts
+        return output_texts, timestamps
     def __call__(self, batch, is_sherpa_format=True):
         encoder_out, encoder_out_lens = self.encode_one_batch(batch)
-        output_texts = self.decode(encoder_out, encoder_out_lens)
+        output_texts, timestamps = self.decode(encoder_out, encoder_out_lens)
         if not is_sherpa_format:
             final_outputs = [t.replace("▁", " ").lower() for t in output_texts]
-            return final_outputs
+            return final_outputs, timestamps
         else:
-            return output_texts
+            return output_texts, timestamps
