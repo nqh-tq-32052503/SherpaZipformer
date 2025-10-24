@@ -222,16 +222,25 @@ class Tester(object):
                         f"Unsupported decoding method: {self.decoding_method}"
                     )
                 hyps.append([self.token_table[idx] for idx in hyp])
-        output_texts = []
-        for hyp in hyps:
-            output = "".join(h_ for h_ in hyp)
-            output_texts.append(output)
-        return output_texts, timestamps, hyps
-    def __call__(self, batch, is_sherpa_format=True):
+        final_results = []
+        for index, hyp in enumerate(hyps):
+            element = {"transcript" : "",
+                       "items" : []}
+            transcript = "".join(h_ for h_ in hyp)
+            transcript = str(transcript).replace("▁", " ").lower()
+            element["transcript"] = transcript
+            if self.return_timestamps:
+                timestamp = timestamps[index]
+                token_id = 0
+                for h_, t_ in zip(hyp, timestamp):
+                    element["items"].append({"id" : str(token_id),
+                                             "segment" : str(h_).replace("▁", " ").lower(),
+                                             "start_time" : str(t_),
+                                             "end_time" : ""})
+                    token_id += 1
+            final_results.append(element)
+        return final_results
+    def __call__(self, batch):
         encoder_out, encoder_out_lens = self.encode_one_batch(batch)
-        output_texts, timestamps, hyps = self.decode(encoder_out, encoder_out_lens)
-        if not is_sherpa_format:
-            final_outputs = [t.replace("▁", " ").lower() for t in output_texts]
-            return final_outputs, timestamps, hyps
-        else:
-            return output_texts, timestamps, hyps
+        final_results = self.decode(encoder_out, encoder_out_lens)
+        return final_results

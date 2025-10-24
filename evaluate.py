@@ -76,3 +76,29 @@ def merge_audio(wav_paths, output_path):
     # Save result
     torchaudio.save(output_path, concatenated, sample_rate)
     print(f"✅ Concatenated WAV saved to {output_path}")
+
+import matplotlib.pyplot as plt
+from scipy.io import wavfile
+import numpy as np
+
+def plot_waveform(file_path):
+    # Read WAV file
+    sample_rate, data = wavfile.read(file_path)
+    
+    # If stereo, take only one channel
+    if len(data.shape) == 2:
+        data = data[:, 0]
+
+    # Create time axis in seconds
+    duration = data.shape[0] / sample_rate
+    time = np.linspace(0., duration, data.shape[0])
+
+    # Plot waveform
+    plt.figure(figsize=(10, 4))
+    plt.plot(time, data, linewidth=0.5)
+    plt.title('Audio Waveform')
+    plt.xlabel('Time [s]')
+    plt.ylabel('Amplitude')
+    plt.grid(True)
+    plt.tight_layout()
+    plt.show()
