@@ -61,10 +61,9 @@ def inference(file: UploadFile = File(...)):
         print("Converted input to 16k WAV")
         input_paths = [wav_path]
         input_batch = wavs_to_fbank_tensors(input_paths, device="cuda")
-        outputs = MODEL(input_batch, is_sherpa_format=False)
-        text = outputs[0]
+        outputs = MODEL(input_batch)
         # text = "dummy transcription"
-        return {"text": text}
+        return outputs[0]
 
 if __name__ == "__main__":
     uvicorn.run("app:app", host="0.0.0.0", port=8002, reload=True)
