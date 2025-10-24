@@ -226,12 +226,12 @@ class Tester(object):
         for hyp in hyps:
             output = "".join(h_ for h_ in hyp)
             output_texts.append(output)
-        return output_texts, timestamps
+        return output_texts, timestamps, hyps
     def __call__(self, batch, is_sherpa_format=True):
         encoder_out, encoder_out_lens = self.encode_one_batch(batch)
-        output_texts, timestamps = self.decode(encoder_out, encoder_out_lens)
+        output_texts, timestamps, hyps = self.decode(encoder_out, encoder_out_lens)
         if not is_sherpa_format:
             final_outputs = [t.replace("▁", " ").lower() for t in output_texts]
-            return final_outputs, timestamps
+            return final_outputs, timestamps, hyps
         else:
-            return output_texts, timestamps
+            return output_texts, timestamps, hyps
