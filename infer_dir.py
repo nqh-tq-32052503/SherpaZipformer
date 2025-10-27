@@ -2,8 +2,8 @@ from inference import wavs_to_fbank_tensors
 from tester import Tester
 import os 
 
-input_folder = ""
-output_csv = ""
+input_folder = os.environ.get("INPUT_FOLDER")
+output_csv = os.environ.get("OUTPUT_CSV")
 
 
 model = Tester(folder_path="./pseudo_data", checkpoint_path="./pretrained.pt", is_streaming=False, decoding_method="greedy_search", max_duration=300)
