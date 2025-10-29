@@ -36,6 +36,7 @@ class Tester(object):
         self.params.blank_id = self.token_table["<blk>"]
         self.params.vocab_size = max(self.tokens()) + 1
         self.return_timestamps = return_timestamps
+        print("[INFO] Return timestamps: ", self.return_timestamps)
         self.sp = spm.SentencePieceProcessor()
         self.sp.load(folder_path + "/bpe.model")
         print("[INFO] Load model...")
@@ -114,7 +115,6 @@ class Tester(object):
     def decode(self, encoder_out, encoder_out_lens):
         hyps = []
         timestamps = []
-        print("[INFO] Return timestamps: ", self.return_timestamps)
         if self.params.decoding_method == "greedy_search" and self.params.max_sym_per_frame == 1:
             answers = greedy_search_batch(
                 model=self.model,
