@@ -131,22 +131,20 @@ def main():
         print("[INFO] Len of all list_records: ", len(list_records))
         print("[INFO] Len of existing audios: ", len(list_audios))
 def process():
-    DATA_DIR = "/root/S2T/data/hieunq10/train_5_30"
-    TXT_PATH = "/root/S2T/data/hieunq10/train_5_30.txt"
+    DATA_DIR = ""
+    TXT_PATH = ""
     OUTPUT_DIR = "/root/S2T/data/manifests/"
     with open(TXT_PATH, "r", encoding="utf-8") as f:
         lines = f.readlines()
         list_audios = []
         list_transcripts = []
         for line in tqdm(lines):
-            path, text = line.split("\t")
-            folder_name, file_name = os.path.split(path)
-            audio_path = DATA_DIR + "/" + file_name
+            audio_path, text = line.split("\t")
             assert os.path.exists(audio_path), "File not found: {0}".format(audio_path)
             list_audios.append(audio_path)
             list_transcripts.append(text)
     print("[INFO] Total audios: {0}".format(len(list_audios))) 
-    DataPreparation(list_audios, list_transcripts, OUTPUT_DIR)
+    DataPreparation(list_audios, list_transcripts, OUTPUT_DIR, extract_fbank=False)
 
 # if __name__ == "__main__":
 #     process()
